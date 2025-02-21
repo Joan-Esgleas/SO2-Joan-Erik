@@ -83,7 +83,13 @@ void setIdt()
   set_handlers();
 
   /* ADD INITIALIZATION CODE FOR INTERRUPT VECTOR */
+  // 3 usuari pot invocar
+  // 0 nomes sistema
+  //setInterruptHandler(33, keyboard_handler, ?)
+  //setInterruptHandler(34, clock_handler, ?)
 
   set_idt_reg(&idtR);
 }
 
+//void keyboard_routine();
+//void clock_routine();
