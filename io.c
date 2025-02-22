@@ -10,8 +10,6 @@
 /** Screen  ***/
 /**************/
 
-#define NUM_COLUMNS 80
-#define NUM_ROWS    25
 
 Byte x, y=19;
 

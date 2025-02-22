@@ -1,6 +1,7 @@
 /*
  * interrupt.c -
  */
+#include "include/io.h"
 #include <types.h>
 #include <interrupt.h>
 #include <segment.h>
@@ -73,6 +74,7 @@ void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL)
   idt[vector].highOffset      = highWord((DWord)handler);
 }
 
+void keyboard_handler();
 
 void setIdt()
 {
@@ -85,11 +87,18 @@ void setIdt()
   /* ADD INITIALIZATION CODE FOR INTERRUPT VECTOR */
   // 3 usuari pot invocar
   // 0 nomes sistema
-  //setInterruptHandler(33, keyboard_handler, ?)
+  setInterruptHandler(33, keyboard_handler, 0);
   //setInterruptHandler(34, clock_handler, ?)
 
   set_idt_reg(&idtR);
 }
 
-//void keyboard_routine();
+void keyboard_routine() {
+  unsigned char read_inp = inb(0x60);
+  char is_break = read_inp >> 6;
+  if (!is_break) {
+    char char_print = char_map[read_inp & 0b01111111];
+    printc_xy(NUM_COLUMNS-1,0, char_print);
+  }
+}
 //void clock_routine();

@@ -17,6 +17,7 @@ int __attribute__ ((__section__(".text.main")))
 
   while(1) {
 
-    int temp = addAsm(0x42,0x666); 
+    int temp2 = add(0x42,0x666);
+    int temp1 = addAsm(0x42,0x666);
   }
 }

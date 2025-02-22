@@ -68,12 +68,12 @@
       movb $0x20, %al ; \
       outb %al, $0x20 ;
 
-//entry(keyboard_handler)
-//	SAVE_ALL // Save the current context
-//  EOI
-//	call *keyboard_routine(, %EAX, ?) // Call the corresponding service routine
-//	RESTORE_ALL // Restore the context
-//	iret
+ENTRY(keyboard_handler)
+      SAVE_ALL // Save the current context
+      EOI
+      call keyboard_routine // Call the corresponding service routine
+      RESTORE_ALL // Restore the context
+      iret
 
 //entry(clock_handler)
 //	SAVE_ALL // Save the current context
