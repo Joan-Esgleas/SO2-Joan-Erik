@@ -72,7 +72,8 @@ int __attribute__((__section__(".text.main")))
 
   /*** DO *NOT* ADD ANY CODE IN THIS ROUTINE BEFORE THIS POINT ***/
 
-  printk("Kernel Loaded!    ");
+  printk("Systema operatiu de SO2 per Joan i Erik \n");
+  printk("Kernel Loaded!    \n");
 
 
   /* Initialize hardware data */
