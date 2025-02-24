@@ -7,8 +7,6 @@
 
 #include <types.h>
 
-#define NUM_COLUMNS 80
-#define NUM_ROWS    25
 /** Screen functions **/
 /**********************/
 

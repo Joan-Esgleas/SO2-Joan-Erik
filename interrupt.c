@@ -96,9 +96,13 @@ void setIdt()
 void keyboard_routine() {
   unsigned char read_inp = inb(0x60);
   char is_break = read_inp >> 6;
+  char p_ch = read_inp & 0b01111111;
+  if(p_ch < 0 && p_ch > 98) return;
   if (!is_break) {
-    char char_print = char_map[read_inp & 0b01111111];
-    printc_xy(NUM_COLUMNS-1,0, char_print);
+      char char_print = char_map[p_ch];
+      if(char_print == '\0') char_print = 'C';
+      printc_xy(0,0, char_print);
   }
 }
+
 //void clock_routine();

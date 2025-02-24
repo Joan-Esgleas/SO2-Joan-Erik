@@ -51,7 +51,7 @@
       movl %edx, %ds;           \
       movl %edx, %es
 
-#define RESTORE_ALL
+#define RESTORE_ALL \
       popl %edx; \
       popl %ecx; \
       popl %ebx; \
@@ -62,7 +62,7 @@
       popl %ds; \
       popl %es; \
       popl %fs; \
-      popl %gs; \
+      popl %gs;
 
 #define EOI \
       movb $0x20, %al ; \
