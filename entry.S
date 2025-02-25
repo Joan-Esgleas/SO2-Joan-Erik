@@ -69,17 +69,17 @@
       outb %al, $0x20 ;
 
 ENTRY(keyboard_handler)
-      SAVE_ALL // Save the current context
-      EOI
-      call keyboard_routine // Call the corresponding service routine
-      RESTORE_ALL // Restore the context
-      iret
+	SAVE_ALL // Save the current context
+	EOI
+	call keyboard_routine // Call the corresponding service routine
+	RESTORE_ALL // Restore the context
+	iret
 
-//entry(clock_handler)
-//	SAVE_ALL // Save the current context
-//  EOI
-//	call *clock_routine(, %EAX, ?) // Call the corresponding service routine
-//	RESTORE_ALL // Restore the context
-//	iret
+ENTRY(clock_handler)
+	SAVE_ALL // Save the current context
+	EOI
+	call clock_routine// Call the corresponding service routine
+	RESTORE_ALL // Restore the context
+	iret
 
 

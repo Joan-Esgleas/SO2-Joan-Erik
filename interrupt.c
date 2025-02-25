@@ -75,6 +75,7 @@ void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL)
 }
 
 void keyboard_handler();
+void clock_handler();
 
 void setIdt()
 {
@@ -88,7 +89,7 @@ void setIdt()
   // 3 usuari pot invocar
   // 0 nomes sistema
   setInterruptHandler(33, keyboard_handler, 0);
-  //setInterruptHandler(34, clock_handler, ?)
+  setInterruptHandler(32, clock_handler, 0);
 
   set_idt_reg(&idtR);
 }
@@ -105,4 +106,6 @@ void keyboard_routine() {
   }
 }
 
-//void clock_routine();
+void clock_routine(){
+ zeos_show_clock();
+}
