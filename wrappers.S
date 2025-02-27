@@ -10,15 +10,14 @@ ENTRY(write)
 	pushl %ecx
 	
 	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
-	mov 0x08(%ebp), %ebx  //fd -> ebx
+	mov 0x08(%ebp), %edx  //fd -> edx
 	mov 0x0c(%ebp), %ecx  //buffer -> ecx
-	mov 0x10(%ebp), %edx //size -> edx
+	mov 0x10(%ebp), %ebx //size -> ebx
 	
 	//Ponemos el numero de la syscall en el eax
 	movl $4, %eax
 	
 	pushl $writeRet
-	//Fake dynamic link
 	pushl %ebp
 	mov %esp,%ebp
 	

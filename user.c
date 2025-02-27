@@ -17,7 +17,10 @@ int __attribute__ ((__section__(".text.main")))
 	
 	char * mensaje = "\nPrueba del write en el user.c\n";
 	if(write(1, mensaje, 31) < 0) perror();
-
+	
+	//char* p = 0;
+	//*p = ’x’;
+	
   while(1) {
 
     int temp2 = add(0x42,0x666);

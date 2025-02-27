@@ -48,8 +48,7 @@ void sys_exit()
 {  
 }
 
-char buffer_k[256];
-#define BUFFER_SIZE 256
+char bufferAux[];
 
 int sys_write(int fd, char * buffer, int size) {
 	int checkFd = check_fd(fd, ESCRIPTURA);
@@ -57,21 +56,8 @@ int sys_write(int fd, char * buffer, int size) {
 	else if(buffer == NULL) return EFAULT;
 	else if (size <= 0) return EINVAL;
 	else {
-		int bytes = size;
-		int written_bytes; 
-
-		while(bytes > BUFFER_SIZE){
-			copy_from_user(buffer+(size-bytes), buffer_k, BUFFER_SIZE);
-			written_bytes = sys_write_console(buffer_k, BUFFER_SIZE);
-			
-			buffer = buffer+BUFFER_SIZE;
-			bytes = bytes-written_bytes;
-		}
-		
-		copy_from_user(buffer+(size-bytes), buffer_k, bytes);
-		written_bytes = sys_write_console(buffer_k, bytes);
-		bytes = bytes-written_bytes;	
-
-		return size-bytes;
+		copy_from_user(buffer, bufferAux, size);
+		int ret = sys_write_console(bufferAux, size);
+		return ret;
 	}
 }
