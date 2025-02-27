@@ -12,4 +12,5 @@ struct stats
   unsigned long total_trans; /* Number of times the process has got the CPU: READY->RUN transitions */
   unsigned long remaining_ticks;
 };
+
 #endif /* !STATS_H */

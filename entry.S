@@ -4,7 +4,7 @@
 
 #include <asm.h>
 #include <segment.h>
-
+#include <errno.h>
 
 /**************************************************/
 /**** Save & Restore ******************************/
@@ -82,4 +82,37 @@ ENTRY(clock_handler)
 	RESTORE_ALL // Restore the context
 	iret
 
+ENTRY(writeMSR)
+      push %ebp
+      mov %esp, %ebp
 
+      mov 0x8(%ebp), %ecx
+      movl $0, %edx       
+      mov 0xc(%ebp), %eax
+      wrmsr
+
+      pop %ebp
+      ret
+
+ENTRY(syscall_handler_sysenter)
+	push $__USER_DS //Guarda el contexto que guardaria el INT
+	push %EBP // User stack address
+	pushfl
+	push $__USER_CS
+	push 4(%EBP) // User return address
+	SAVE_ALL
+	cmpl $0, %EAX
+	jl sysenter_err
+	cmpl $MAX_SYSCALL, %EAX
+	jg sysenter_err
+	call *sys_call_table(, %EAX, 0x04)
+	jmp sysenter_fin
+	sysenter_err:
+	movl $-ENOSYS, %EAX
+	sysenter_fin:
+	movl %EAX, 0x18(%ESP)
+	RESTORE_ALL
+	movl (%ESP), %EDX // Return address
+	movl 12(%ESP), %ECX // User stack address
+	sti // Enable interrupts again
+	sysexit
