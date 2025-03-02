@@ -1,6 +1,7 @@
 /*
  * interrupt.c -
  */
+#include "include/interrupt.h"
 #include "include/io.h"
 #include <types.h>
 #include <interrupt.h>
@@ -113,5 +114,8 @@ void keyboard_routine() {
 }
 
 void clock_routine(){
- zeos_show_clock();
+  zeos_show_clock();
+  zeos_tick += 10;
+  char c_p = char_map[2+((zeos_tick%100)/10)];
+  printc(c_p);
 }
