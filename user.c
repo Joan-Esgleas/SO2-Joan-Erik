@@ -20,10 +20,14 @@ int __attribute__ ((__section__(".text.main")))
 	
 	//char* p = 0;
 	//*p = ’x’;
-	
-  while(1) {
 
+  while(1) {
+    int time = gettime();
     int temp2 = add(0x42,0x666);
     int temp1 = addAsm(0x42,0x666);
+    char m[12];
+    itoa(time,m);
+	if(write(1, m, 12) < 0) perror();
+
   }
 }

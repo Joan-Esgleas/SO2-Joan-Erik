@@ -78,6 +78,7 @@ void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL)
 void keyboard_handler();
 void clock_handler();
 void syscall_handler_sysenter();
+void system_call_handler();
 void writeMSR(unsigned long msr, unsigned long val);
 
 void setIdt()
@@ -94,6 +95,8 @@ void setIdt()
   setInterruptHandler(33, keyboard_handler, 0);
   setInterruptHandler(32, clock_handler, 0);
   
+  setTrapHandler(0x80, system_call_handler, 3);
+
   writeMSR(0x174, __KERNEL_CS);
   writeMSR(0x175, INITIAL_ESP);
   writeMSR(0x176, (unsigned long)syscall_handler_sysenter);
@@ -116,6 +119,5 @@ void keyboard_routine() {
 void clock_routine(){
   zeos_show_clock();
   zeos_tick += 10;
-  char c_p = char_map[2+((zeos_tick%100)/10)];
-  printc(c_p);
+  //char c_p = char_map[2+((zeos_tick%100)/10)];
 }

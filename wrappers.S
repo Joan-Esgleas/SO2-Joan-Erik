@@ -39,3 +39,13 @@ writeSinError:
 
 	popl %ebp
 	ret
+
+ENTRY(gettime)
+  pushl %ebp
+  mov %esp,%ebp
+
+  movl $0x0A, %eax 
+  int $0x80
+
+  pop %ebp
+  ret
