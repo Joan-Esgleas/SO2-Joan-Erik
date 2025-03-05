@@ -18,12 +18,16 @@ int __attribute__ ((__section__(".text.main")))
 	char * mensaje = "\nPrueba del write en el user.c\n";
 	if(write(1, mensaje, 31) < 0) perror();
 	
-	//char* p = 0;
-	//*p = ’x’;
-	
-  while(1) {
+	char* p = 0;
+	*p = 'x';
 
+  while(1) {
+    int time = gettime();
     int temp2 = add(0x42,0x666);
     int temp1 = addAsm(0x42,0x666);
+    char m[12];
+    itoa(time,m);
+	if(write(1, m, 12) < 0) perror();
+
   }
 }

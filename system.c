@@ -2,6 +2,7 @@
  * system.c - 
  */
 
+#include "include/interrupt.h"
 #include <segment.h>
 #include <types.h>
 #include <interrupt.h>
@@ -18,6 +19,7 @@ int (*usr_main)(void) = (void *) (PAG_LOG_INIT_CODE*PAGE_SIZE);
 unsigned int *p_sys_size = (unsigned int *) KERNEL_START;
 unsigned int *p_usr_size = (unsigned int *) KERNEL_START+1;
 unsigned int *p_rdtr = (unsigned int *) KERNEL_START+2;
+int zeos_tick = 0;
 
 /************************/
 /** Auxiliar functions **/
@@ -74,6 +76,7 @@ int __attribute__((__section__(".text.main")))
 
   printk("Systema operatiu de SO2 per Joan i Erik \n");
   printk("Kernel Loaded!    \n");
+  zeos_tick = 0;
 
 
   /* Initialize hardware data */
