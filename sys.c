@@ -1,6 +1,7 @@
 /*
  * sys.c - Syscalls implementation
  */
+#include "include/interrupt.h"
 #include <devices.h>
 
 #include <utils.h>
@@ -48,9 +49,9 @@ void sys_exit()
 {  
 }
 
-char bufferAux[];
 
 int sys_write(int fd, char * buffer, int size) {
+    char bufferAux[size];
 	int checkFd = check_fd(fd, ESCRIPTURA);
 	if(checkFd) return checkFd;
 	else if(buffer == NULL) return EFAULT;
@@ -60,4 +61,8 @@ int sys_write(int fd, char * buffer, int size) {
 		int ret = sys_write_console(bufferAux, size);
 		return ret;
 	}
+}
+
+int sys_gettime() {
+  return zeos_tick;
 }

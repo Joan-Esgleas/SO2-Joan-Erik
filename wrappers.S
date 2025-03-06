@@ -8,6 +8,7 @@ ENTRY(write)
 	//Se guardan estos registros porque hacemos fast syscall
 	pushl %edx
 	pushl %ecx
+	pushl %ebx
 	
 	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
 	mov 0x08(%ebp), %edx  //fd -> edx
@@ -27,8 +28,9 @@ writeRet:
 	
 	popl %ebp
 	addl $4, %esp
-	popl %edx
+	popl %ebx
 	popl %ecx
+	popl %edx
 	cmpl $0, %eax
 	jge writeSinError
 	negl %eax
@@ -39,3 +41,13 @@ writeSinError:
 
 	popl %ebp
 	ret
+
+ENTRY(gettime)
+  pushl %ebp
+  mov %esp,%ebp
+
+  movl $0x0A, %eax 
+  int $0x80
+
+  pop %ebp
+  ret
