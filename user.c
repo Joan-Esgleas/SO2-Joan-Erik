@@ -27,7 +27,7 @@ int __attribute__ ((__section__(".text.main")))
     char m[12];
     itoa(time,m);
 	if(write(1, m, 12) < 0) perror();
-    char* p = 0;
-	*p = 'x';
+    //char* p = 0;
+	//*p = 'x';
   }
 }

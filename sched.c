@@ -17,7 +17,8 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 #endif
 
 extern struct list_head blocked;
-
+struct list_head freequeue;
+struct list_head readyqueue;
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -29,6 +30,11 @@ page_table_entry * get_DIR (struct task_struct *t)
 page_table_entry * get_PT (struct task_struct *t) 
 {
 	return (page_table_entry *)(((unsigned int)(t->dir_pages_baseAddr->bits.pbase_addr))<<12);
+}
+
+struct task_struct* list_head_to_task_struct(struct list_head *l)
+{
+  return (struct task_struct*)((int)l&0xfffff000);
 }
 
 
@@ -65,7 +71,13 @@ void init_task1(void)
 
 void init_sched()
 {
-
+	INIT_LIST_HEAD(&freequeue);
+	INIT_LIST_HEAD(&readyqueue);
+	
+	for (int i=0; i < NR_TASKS; i++){
+    	task[i].task.PID=-1;
+    	list_add_tail(&(task[i].task.list), &freequeue);
+  	}
 }
 
 struct task_struct* current()
