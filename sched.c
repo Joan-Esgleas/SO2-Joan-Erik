@@ -2,6 +2,7 @@
  * sched.c - initializes struct for task 0 anda task 1
  */
 
+#include "include/list.h"
 #include <sched.h>
 #include <mm.h>
 #include <io.h>
@@ -61,7 +62,16 @@ void cpu_idle(void)
 
 void init_idle (void)
 {
-
+  // list_del del freequeue
+  // añadirlo
+  struct task_struct* ct = list_head_to_task_struct(&freequeue);
+  list_del(&freequeue);
+  ct->PID = 0;
+  allocate_DIR(ct);
+  ((union task_union*)ct)->stack[KERNEL_STACK_SIZE-1] = (unsigned long) cpu_idle;
+  ((union task_union*)ct)->stack[KERNEL_STACK_SIZE-2] = (unsigned long) 0;
+  ct->k_esp = (unsigned long) &(((union task_union*)ct)->stack[KERNEL_STACK_SIZE-2]);
+  idle_task = ct;
 }
 
 void init_task1(void)
