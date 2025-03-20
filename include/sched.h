@@ -28,7 +28,6 @@ union task_union {
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
-struct task_struct * idle_task;
 
 #define KERNEL_ESP(t)       	(DWord) &(t)->stack[KERNEL_STACK_SIZE]
 

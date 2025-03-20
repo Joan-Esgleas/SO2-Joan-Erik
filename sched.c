@@ -3,6 +3,7 @@
  */
 
 #include "include/list.h"
+#include "include/mm.h"
 #include <sched.h>
 #include <mm.h>
 #include <io.h>
@@ -20,6 +21,7 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 extern struct list_head blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
+struct task_struct * idle_task;
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -62,10 +64,10 @@ void cpu_idle(void)
 
 void init_idle (void)
 {
-  // list_del del freequeue
-  // añadirlo
-  struct task_struct* ct = list_head_to_task_struct(&freequeue);
-  list_del(&freequeue);
+  struct list_head * e = list_first(&freequeue);
+  struct task_struct* ct = list_head_to_task_struct(e);
+  list_del(e);
+
   ct->PID = 0;
   allocate_DIR(ct);
   ((union task_union*)ct)->stack[KERNEL_STACK_SIZE-1] = (unsigned long) cpu_idle;
@@ -76,6 +78,17 @@ void init_idle (void)
 
 void init_task1(void)
 {
+  struct list_head * e = list_first(&freequeue);
+  struct task_struct* ct = list_head_to_task_struct(e);
+  list_del(e);
+
+  ct->PID = 1;
+  allocate_DIR(ct);
+  
+  set_user_pages(ct);
+  tss.esp0 = (unsigned long) &(((union task_union*)ct)->stack[KERNEL_STACK_SIZE]);
+  writeMSR(0x175, (unsigned long) &(((union task_union*)ct)->stack[KERNEL_STACK_SIZE]));
+  set_cr3(ct->dir_pages_baseAddr);
 }
 
 
