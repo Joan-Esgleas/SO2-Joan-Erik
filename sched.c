@@ -2,6 +2,7 @@
  * sched.c - initializes struct for task 0 anda task 1
  */
 
+#include "include/io.h"
 #include "include/list.h"
 #include "include/mm.h"
 #include "include/types.h"
@@ -23,7 +24,7 @@ extern struct list_head blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
 struct task_struct * idle_task;
-struct task_struct * task0;
+struct task_struct * task1;
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -91,15 +92,13 @@ void init_task1(void)
   tss.esp0 = (unsigned long) &(((union task_union*)ct)->stack[KERNEL_STACK_SIZE]);
   writeMSR(0x175, (unsigned long) &(((union task_union*)ct)->stack[KERNEL_STACK_SIZE]));
   set_cr3(ct->dir_pages_baseAddr);
+  task1 = ct;
 }
 
 void inner_task_switch(union task_union *new) {
-  printk("activado inner task switch");
-  page_table_entry *new_ENTRY = get_DIR(&new->task);
-
+  printk("Hemos cambiado proceso\n");
   tss.esp0 = (unsigned long) &(new->stack[KERNEL_STACK_SIZE]);
-
-  set_cr3(new_ENTRY);
+  set_cr3(get_DIR(&new->task));
 
   cambio_stack(&current()->k_esp, new->task.k_esp);
 }

@@ -108,28 +108,6 @@ void setIdt()
   set_idt_reg(&idtR);
 }
 
-void keyboard_routine() {
-  unsigned char read_inp = inb(0x60);
-  char is_break = read_inp >> 6;
-  char p_ch = read_inp & 0b01111111;
-  if(p_ch < 0 && p_ch > 98) return;
-  if (!is_break) {
-      char char_print = char_map[p_ch];
-      if(char_print == '\0') char_print = 'C';
-      printc_xy(0,0, char_print);
-  
-      //Falta hacer mas pruebas
-      //task_switch((union task_union*)idle_task);
-  }
-}
-
-
-
-void clock_routine(){
-  zeos_show_clock();
-  zeos_tick += 10;
-}
-
 void stringNumHex(char * res, unsigned long num) {
 	char mapaHex[] = "0123456789ABCDEF";
 	
@@ -141,6 +119,45 @@ void stringNumHex(char * res, unsigned long num) {
 	res[8] = '\0';
 
 }
+
+void keyboard_routine() {
+  unsigned char read_inp = inb(0x60);
+  char is_break = read_inp >> 6;
+  char p_ch = read_inp & 0b01111111;
+  if(p_ch < 0 && p_ch > 98) return;
+  if (!is_break) {
+      char char_print = char_map[p_ch];
+      if(char_print == '\0') char_print = 'C';
+      printc_xy(0,0, char_print);
+  
+
+      char pidProceso[9];
+      stringNumHex(pidProceso, current()->PID);
+      printk("\nProceso actual con PID: 0x");
+      printk(pidProceso);
+      printk("\n");
+
+      if(current()->PID == task1->PID)
+        task_switch((union task_union*)idle_task);
+      else
+        task_switch((union task_union*)task1);
+
+      stringNumHex(pidProceso, current()->PID);
+      printk("Ha cambiado a proceso con PID: 0x");
+      printk(pidProceso);
+      printk("\n");
+
+  }
+}
+
+
+
+void clock_routine(){
+  zeos_show_clock();
+  zeos_tick += 10;
+}
+
+
 
 void page_fault_routine_2(unsigned long error, unsigned long eip){
   char errorStr[9];
