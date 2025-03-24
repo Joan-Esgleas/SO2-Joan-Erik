@@ -17,17 +17,21 @@ int __attribute__ ((__section__(".text.main")))
 	
 	char * mensaje = "\nPrueba del write en el user.c\n";
 	if(write(1, mensaje, 31) < 0) perror();
-	
-	
-  while(1) {
-    int temp2 = add(0x42,0x666);
-    int temp1 = addAsm(0x42,0x666);
     
-    int time = gettime();
-    char m[12];
-    itoa(time,m);
-	//if(write(1, m, 12) < 0) perror();
-    //char* p = 0;
-	//*p = 'x';
-  }
+    int pid = getpid();
+    char p[12];
+    itoa(pid,p);
+	if(write(1, p, 12) < 0) perror();
+
+    while(1) {
+      int temp2 = add(0x42,0x666);
+      int temp1 = addAsm(0x42,0x666);
+    
+      int time = gettime();
+      char m[12];
+      itoa(time,m);
+	  //if(write(1, m, 12) < 0) perror();
+      //char* p = 0;
+	  //*p = 'x';
+    }
 }

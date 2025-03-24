@@ -51,3 +51,31 @@ ENTRY(gettime)
 
   pop %ebp
   ret
+
+ENTRY(getpid)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $20, %eax
+	
+	pushl $getpidRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+getpidRet:
+	
+	popl %ebp
+	addl $4, %esp
+	cmpl $0, %eax
+	jge getpidSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+getpidSinError:
+
+	popl %ebp
+	ret
