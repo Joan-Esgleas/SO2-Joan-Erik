@@ -75,6 +75,35 @@ ENTRY(keyboard_handler)
 	RESTORE_ALL // Restore the context
 	iret
 
+ENTRY(cambio_stack)
+  movl 4(%esp), %eax
+  mov %ebp, (%eax)
+  mov 8(%esp), %esp
+  popl %ebp
+  ret
+
+ENTRY(task_switch)
+  push %ebp
+  movl %esp, %ebp
+
+  pushl %esi
+  pushl %edi
+  pushl %ebx
+
+  push 8(%ebp)
+  call inner_task_switch // Call the corresponding service routine 
+
+  addl $4, %esp
+
+
+  popl %ebx
+  popl %edi
+  popl %esi
+
+  mov %ebp, %esp
+  pop %ebp
+  ret
+
 ENTRY(clock_handler)
 	SAVE_ALL // Save the current context
 	EOI

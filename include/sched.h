@@ -28,6 +28,8 @@ union task_union {
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
+extern struct task_struct * idle_task;
+extern struct task_struct * task0;
 
 #define KERNEL_ESP(t)       	(DWord) &(t)->stack[KERNEL_STACK_SIZE]
 
@@ -39,6 +41,8 @@ void init_task1(void);
 void init_idle(void);
 
 void init_sched(void);
+
+void cambio_stack(unsigned long * save_sp, unsigned long new_sp);
 
 struct task_struct * current();
 

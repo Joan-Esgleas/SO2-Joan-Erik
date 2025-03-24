@@ -4,6 +4,7 @@
 
 #include "include/list.h"
 #include "include/mm.h"
+#include "include/types.h"
 #include <sched.h>
 #include <mm.h>
 #include <io.h>
@@ -22,6 +23,7 @@ extern struct list_head blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
 struct task_struct * idle_task;
+struct task_struct * task0;
 
 /* get_DIR - Returns the Page Directory address for task 't' */
 page_table_entry * get_DIR (struct task_struct *t) 
@@ -91,6 +93,16 @@ void init_task1(void)
   set_cr3(ct->dir_pages_baseAddr);
 }
 
+void inner_task_switch(union task_union *new) {
+  printk("activado inner task switch");
+  page_table_entry *new_ENTRY = get_DIR(&new->task);
+
+  tss.esp0 = (unsigned long) &(new->stack[KERNEL_STACK_SIZE]);
+
+  set_cr3(new_ENTRY);
+
+  cambio_stack(&current()->k_esp, new->task.k_esp);
+}
 
 void init_sched()
 {

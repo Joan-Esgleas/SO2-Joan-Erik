@@ -8,6 +8,7 @@
 #include <segment.h>
 #include <hardware.h>
 #include <io.h>
+#include <sched.h>
 
 #include <zeos_interrupt.h>
 
@@ -81,6 +82,7 @@ void syscall_handler_sysenter();
 void system_call_handler();
 void writeMSR(unsigned long msr, unsigned long val);
 void page_fault_handler_2();
+void task_switch(union task_union *new);
 
 void setIdt()
 {
@@ -115,13 +117,17 @@ void keyboard_routine() {
       char char_print = char_map[p_ch];
       if(char_print == '\0') char_print = 'C';
       printc_xy(0,0, char_print);
+  
+      //Falta hacer mas pruebas
+      //task_switch((union task_union*)idle_task);
   }
 }
+
+
 
 void clock_routine(){
   zeos_show_clock();
   zeos_tick += 10;
-  //char c_p = char_map[2+((zeos_tick%100)/10)];
 }
 
 void stringNumHex(char * res, unsigned long num) {
