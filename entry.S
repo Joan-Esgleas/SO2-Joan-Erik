@@ -76,8 +76,8 @@ ENTRY(keyboard_handler)
 	iret
 
 ENTRY(cambio_stack)
-  movl 4(%esp), %eax
-  mov %ebp, (%eax)
+  movl 4(%esp), %ebx
+  mov %ebp, (%ebx)
   mov 8(%esp), %esp
   popl %ebp
   ret
