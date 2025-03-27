@@ -28,6 +28,9 @@ union task_union {
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
+extern struct list_head blocked;
+extern struct list_head freequeue;
+extern struct list_head readyqueue;
 extern struct task_struct * idle_task;
 extern struct task_struct * task1;
 

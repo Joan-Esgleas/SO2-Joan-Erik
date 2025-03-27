@@ -15,9 +15,10 @@ int __attribute__ ((__section__(".text.main")))
     /* Next line, tries to move value 0 to CR3 register. This register is a privileged one, and so it will raise an exception */
      /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 	
-	char * mensaje = "\nPrueba del write en el user.c\n";
-	if(write(1, mensaje, 31) < 0) perror();
+	//char * mensaje = "\nPrueba del write en el user.c\n";
+	//if(write(1, mensaje, 31) < 0) perror();
     
+    fork();
     int pid = getpid();
     char p[12];
     itoa(pid,p);

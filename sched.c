@@ -20,7 +20,6 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 }
 #endif
 
-extern struct list_head blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
 struct task_struct * idle_task;
@@ -96,8 +95,9 @@ void init_task1(void)
 }
 
 void inner_task_switch(union task_union *new) {
-  printk("Hemos cambiado proceso\n");
+  //printk("Hemos cambiado proceso\n");
   tss.esp0 = (unsigned long) &(new->stack[KERNEL_STACK_SIZE]);
+  writeMSR(0x175, (unsigned long) &(new->stack[KERNEL_STACK_SIZE]));
   set_cr3(get_DIR(&new->task));
 
   cambio_stack(&current()->k_esp, new->task.k_esp);

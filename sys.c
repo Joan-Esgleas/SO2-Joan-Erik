@@ -105,7 +105,7 @@ int sys_fork()
   //Creem una variable que ens fara accedir a les pagines lliures del pare
   int offset = NUM_PAG_DATA + NUM_PAG_CODE;
   
-  for(int i = PAG_LOG_INIT_DATA; i < NUM_PAG_DATA; i++) {
+  for(int i = PAG_LOG_INIT_DATA; i < (PAG_LOG_INIT_DATA + NUM_PAG_DATA); i++) {
   	//Ara creem una pagina de copia que apunti al mateix frame que la DATA del fill
   	set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
   	//Ara copiem tot en aquesta pagina de copia vinculada al frame del DATA del fill perque aquest tingui la info
