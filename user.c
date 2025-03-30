@@ -19,9 +19,11 @@ int __attribute__ ((__section__(".text.main")))
 	//if(write(1, mensaje, 31) < 0) perror();
     
     fork();
+    fork();
     int pid = getpid();
     char p[12];
     itoa(pid,p);
+    p[11] = '\n';
 	if(write(1, p, 12) < 0) perror();
 
     while(1) {

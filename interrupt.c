@@ -124,28 +124,16 @@ void keyboard_routine() {
       char_print = 'C';
     printc_xy(0, 0, char_print);
 
-    char pidProceso[9];
-    stringNumHex(pidProceso, current()->PID);
-    //printk("\nProceso actual con PID: 0x");
-    //printk(pidProceso);
-    //printk("\n");
-
-    struct list_head *e = list_first(&readyqueue);
-    struct task_struct *ct = list_head_to_task_struct(e);
-    list_del(e);
-    list_add_tail(&current()->list, &readyqueue);
-    task_switch((union task_union *)ct);
-
-    stringNumHex(pidProceso, current()->PID);
-    printk("Ha cambiado a proceso con PID: 0x");
-    printk(pidProceso);
-    printk("\n");
   }
 }
 
 void clock_routine() {
   zeos_show_clock();
   zeos_tick += 10;
+  update_sched_data_rr();
+  if(needs_sched_rr()){
+    sched_next_rr();
+  }
 }
 
 void page_fault_routine_2(unsigned long error, unsigned long eip) {
