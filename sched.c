@@ -65,7 +65,7 @@ void init_idle(void) {
   list_del(e);
 
   ct->PID = 0;
-  ct->quantum = 0;
+  set_quantum(ct,0);
   allocate_DIR(ct);
   ((union task_union *)ct)->stack[KERNEL_STACK_SIZE - 1] =
       (unsigned long)cpu_idle;
@@ -81,8 +81,8 @@ void init_task1(void) {
   list_del(e);
 
   ct->PID = 1;
-  ct->quantum = DEFAULT_QUANTUM_TICKS;
-  tick_counter = ct->quantum;
+  set_quantum(ct,DEFAULT_QUANTUM_TICKS);
+  tick_counter = get_quantum(ct);
   allocate_DIR(ct);
 
   set_user_pages(ct);
@@ -129,7 +129,7 @@ void sched_next_rr() {
   struct task_struct *ct = list_head_to_task_struct(e);
   update_process_state_rr(ct, NULL);
   update_process_state_rr(current(), &readyqueue);
-  tick_counter = ct->quantum;
+  tick_counter = get_quantum(ct);
   task_switch((union task_union *)ct);
 }
 
