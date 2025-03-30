@@ -79,27 +79,37 @@ int sys_fork() {
     set_ss_pag(hijo_PT, i, frame_code);
   }
 
-  // Copia en mem libre data y pila
-  int init_free_mem = PAG_LOG_INIT_CODE + (NUM_PAG_CODE * PAGE_SIZE);
+  // Vincula paginas logicas con los frmaes cojidos
+  for (int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; ++i)
+    set_ss_pag(hijo_PT, i, frames[i]);
 
-  for(int i = 0; i < NUM_PAG_DATA*PAGE_SIZE; i+=PAGE_SIZE) {
-    set_ss_pag(padre_PT, init_free_mem + i, get_frame(hijo_PT, PAG_LOG_INIT_DATA + i));
-    copy_data(PAG_LOG_INIT_DATA + i, init_free_mem + i, PAGE_SIZE);
-    del_ss_pag(padre_PT, init_free_mem + i);
+  // Copia en mem libre data y pila
+  int init_free_mem = PAG_LOG_INIT_CODE + NUM_PAG_CODE;
+
+  for (int i = 0; i < NUM_PAG_DATA; ++i) {
+    unsigned int page_id_mem_data = PAG_LOG_INIT_DATA + i;
+    unsigned int page_id_free_mem_data = init_free_mem + i;
+    set_ss_pag(padre_PT, page_id_free_mem_data,
+               get_frame(hijo_PT, page_id_mem_data));
+    copy_data(page_id_mem_data << 12, page_id_free_mem_data << 12, PAGE_SIZE);
+    del_ss_pag(padre_PT, page_id_free_mem_data);
   }
 
   // Flush TLB
   set_cr3(get_DIR(padre_task));
-  
-  ((union task_union *) hijo_task)->stack[KERNEL_STACK_SIZE-19] = (unsigned long) 0;
-  ((union task_union *) hijo_task)->stack[KERNEL_STACK_SIZE-18] = (unsigned long) &ret_from_fork;
 
-  hijo_task->k_esp = &((union task_union*)hijo_task)->stack[KERNEL_STACK_SIZE-19];
-  
-  //j) en el document:
+  ((union task_union *)hijo_task)->stack[KERNEL_STACK_SIZE - 19] =
+      (unsigned long)0;
+  ((union task_union *)hijo_task)->stack[KERNEL_STACK_SIZE - 18] =
+      (unsigned long)&ret_from_fork;
+
+  hijo_task->k_esp =
+      &((union task_union *)hijo_task)->stack[KERNEL_STACK_SIZE - 19];
+
+  // j) en el document:
   list_add_tail(&(hijo_task->list), &readyqueue);
 
-  //k) en el document:
+  // k) en el document:
   return hijo_task->PID;
 }
 
