@@ -6,6 +6,8 @@
 #include "include/list.h"
 #include "include/mm.h"
 #include "include/types.h"
+#include <sched.h>
+#include <mm.h>
 #include <io.h>
 #include <mm.h>
 #include <sched.h>
@@ -58,6 +60,7 @@ void cpu_idle(void) {
     ;
   }
 }
+
 
 void init_idle(void) {
   struct list_head *e = list_first(&freequeue);
