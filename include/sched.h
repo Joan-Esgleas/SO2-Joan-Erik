@@ -30,7 +30,6 @@ union task_union {
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
-
 extern struct list_head blocked;
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
@@ -50,11 +49,9 @@ void init_idle(void);
 
 void init_sched(void);
 
-
 void cambio_stack(unsigned long *save_sp, unsigned long new_sp);
 
 struct task_struct *current();
-
 
 void task_switch(union task_union *t);
 
