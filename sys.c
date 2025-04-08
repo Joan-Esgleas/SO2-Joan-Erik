@@ -198,6 +198,7 @@ int sys_write(int fd, char *buffer, int size) {
     ret += sys_write_console(bufferAux, size);
     return ret;
   }
+}
 int sys_unblock(int pid)
 {
 	struct list_head * e;
