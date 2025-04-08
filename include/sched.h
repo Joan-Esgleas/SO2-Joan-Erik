@@ -23,7 +23,8 @@ struct task_struct {
   int quantum;
   int pending_unblocks;
   struct list_head fills;
-  struct list_head pare;
+  struct list_head pareList;
+  struct task_struct * pare;
 };
 
 union task_union {

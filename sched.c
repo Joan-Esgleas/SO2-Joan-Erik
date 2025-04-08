@@ -67,7 +67,6 @@ void init_idle(void) {
   ct->PID = 0;
   ct->pending_unblocks = 0;
   INIT_LIST_HEAD(&(ct->fills));
-  INIT_LIST_HEAD(&(ct->pare));
   set_quantum(ct,0);
   allocate_DIR(ct);
   ((union task_union *)ct)->stack[KERNEL_STACK_SIZE - 1] =
@@ -86,7 +85,6 @@ void init_task1(void) {
   ct->PID = 1;
   ct->pending_unblocks = 0;
   INIT_LIST_HEAD(&(ct->fills));
-  INIT_LIST_HEAD(&(ct->pare));
   set_quantum(ct,DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
   allocate_DIR(ct);
@@ -109,6 +107,7 @@ void inner_task_switch(union task_union *new) {
 }
 
 void init_sched() {
+  INIT_LIST_HEAD(&blocked);
   INIT_LIST_HEAD(&freequeue);
   INIT_LIST_HEAD(&readyqueue);
 

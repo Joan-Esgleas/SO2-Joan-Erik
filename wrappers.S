@@ -173,7 +173,7 @@ ENTRY(unblock)
 	mov 0x08(%ebp), %edx //pid -> edx
 	
 	//Ponemos el numero de la syscall en el eax
-	movl $5, %eax
+	movl $6, %eax
 	
 	pushl $unblockRet
 	pushl %ebp
@@ -185,6 +185,7 @@ unblockRet:
 	
 	popl %ebp
 	addl $4, %esp
+	popl %edx
 	cmpl $0, %eax
 	jge unblockSinError
 	negl %eax

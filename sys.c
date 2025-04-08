@@ -53,6 +53,7 @@ int sys_fork()
   //S'agafa un PCB de la freequeue
   struct list_head * e = list_first(&freequeue);
   union task_union * fill = (union task_union *)list_head_to_task_struct(e);
+  struct task_struct * fillTs = list_head_to_task_struct(e);
   list_del(e);
   
   //b) en el document:
@@ -62,17 +63,6 @@ int sys_fork()
   //c) en el document:
   //Obtenim un nou directori pel fill
   allocate_DIR((struct task_struct *) fill);
-  
-  //Canvis fora del fork inicial pel block i el unblock
-  fill->pending_unblocks = 0;
-  INIT_LIST_HEAD(&(fill->pare));
-  INIT_LIST_HEAD(&(fill->fills));
-  list_add_tail(&(fill->pare), &(current()->fills));
-  /*struct list_head * fillsCopiaPare = list_first(&(fill->fills));
-  while(fillsCopiaPare != NULL) {
-  	list_del(fillsCopiaPare);
-  	fillsCopiaPare = fillsCopiaPare->next;
-  }*/
   
   //d) en el document:
   //Obtenim les pagines pel nostre fill
@@ -131,6 +121,15 @@ int sys_fork()
   //g) en el document:
   fill->task.PID = pidGlobal++;
   
+  //Informacio que hem d'afegir per el block i el unblock
+  fillTs->pare = current();
+
+  list_add_tail(&fillTs->pareList, &(current()->fills));
+
+  INIT_LIST_HEAD(&(fillTs->fills));
+  
+  fillTs->pending_unblocks = 0;
+  
   //i) en el document:
   //posem el ebp fals de 0 i el ret_from_fork per posar a 0 el valor de retorn de la funcio
   ((union task_union*)fill)->stack[KERNEL_STACK_SIZE-19] = (unsigned long) 0;
@@ -158,18 +157,13 @@ void sys_exit()
 	  ct->PID = -1;
 	  ct->dir_pages_baseAddr = NULL;
 	  
-	  struct task_struct * pare = list_head_to_task_struct(&(ct->pare));
-	  struct list_head * e = list_first(&(ct->fills));
-	  
-	  while(e != NULL) {
-	  	struct list_head * e2 = e->next;
-	  	list_add_tail(&e, &(pare->fills))
-	  	e = e2;
+	  list_del(&(current()->pareList));
+
+	  struct list_head *e;
+	  list_for_each(e, &(current()->fills)) {
+		list_add_tail(e, &(idle_task->fills));
 	  }
-	  
-	  ct->fills = NULL;
-	  list_del(&(ct->pare));
-	  
+
 	  list_add_tail(&(ct->list), &freequeue);
 	  sched_next_rr();
 }
@@ -179,40 +173,39 @@ void sys_block()
 	struct task_struct * ct = current();
 	if(ct->pending_unblocks == 0) {
 		list_add_tail(&(ct->list), &blocked);
+		sched_next_rr();
 	}
 	else --(ct->pending_unblocks);
 }
 
 int sys_unblock(int pid)
 {
-	struct list_head * fill = list_first(&(current()->fills));
-	int esFill = 0;
+	struct list_head * e;
 	
-	while(fill != NULL && esFill == 0) {
-		struct task_struct * fill = list_head_to_task_struct(fill);
+	list_for_each(e, &(current()->fills)) {
+		struct task_struct * fill = list_head_to_task_struct(e);
 		
-		if(fill->PID == pid) esFill = 1;
-		else fill = fill->next;
-	}
-	
-	if(esFill == 0) return -1;
-	 
-	struct list_head * blocks = list_first(&blocked);
-	
-	while(blocks != NULL) {
-		struct task_struct * block = list_head_to_task_struct(blocks);
-		
-		if(block->PID == pid) {
-			list_del(&(block->list));
-			list_add_tail(&(block->list), &readyqueue);
+		if(fill->PID == pid) {
+			struct list_head * e2;
+			
+			int estaBloquejat = 0;
+			
+			list_for_each(e2, &blocked) {
+				struct task_struct * block = list_head_to_task_struct(e2);
+				if(block->PID == pid) {
+					list_del(&(block->list));
+					list_add_tail(&(block->list), &readyqueue);
+					estaBloquejat = 1;
+				}
+			}
+			
+			if(estaBloquejat == 0) ++(fill->pending_unblocks);
+			
 			return 0;
 		}
-		
-		blocks = blocks->next;
 	}
 	
-	++(fill->pending_unblocks);
-	return 0;
+	return -1;
 }
 int sys_write(int fd, char * buffer, int size) {
     char bufferAux[size];
