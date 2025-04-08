@@ -63,6 +63,17 @@ int sys_fork()
   //Obtenim un nou directori pel fill
   allocate_DIR((struct task_struct *) fill);
   
+  //Canvis fora del fork inicial pel block i el unblock
+  fill->pending_unblocks = 0;
+  INIT_LIST_HEAD(&(fill->pare));
+  INIT_LIST_HEAD(&(fill->fills));
+  list_add_tail(&(fill->pare), &(current()->fills));
+  /*struct list_head * fillsCopiaPare = list_first(&(fill->fills));
+  while(fillsCopiaPare != NULL) {
+  	list_del(fillsCopiaPare);
+  	fillsCopiaPare = fillsCopiaPare->next;
+  }*/
+  
   //d) en el document:
   //Obtenim les pagines pel nostre fill
   int frames[NUM_PAG_DATA];
@@ -135,10 +146,74 @@ int sys_fork()
 }
 
 void sys_exit() 
-{  
+{
+	  struct task_struct * ct = current();
+	  page_table_entry * ctTP = get_PT(ct);
+	  
+	  for(int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
+	  	free_frame(get_frame(ctTP, i));
+	  	del_ss_pag(ctTP, i);
+	  }
+	  
+	  ct->PID = -1;
+	  ct->dir_pages_baseAddr = NULL;
+	  
+	  struct task_struct * pare = list_head_to_task_struct(&(ct->pare));
+	  struct list_head * e = list_first(&(ct->fills));
+	  
+	  while(e != NULL) {
+	  	struct list_head * e2 = e->next;
+	  	list_add_tail(&e, &(pare->fills))
+	  	e = e2;
+	  }
+	  
+	  ct->fills = NULL;
+	  list_del(&(ct->pare));
+	  
+	  list_add_tail(&(ct->list), &freequeue);
+	  sched_next_rr();
 }
 
+void sys_block()
+{
+	struct task_struct * ct = current();
+	if(ct->pending_unblocks == 0) {
+		list_add_tail(&(ct->list), &blocked);
+	}
+	else --(ct->pending_unblocks);
+}
 
+int sys_unblock(int pid)
+{
+	struct list_head * fill = list_first(&(current()->fills));
+	int esFill = 0;
+	
+	while(fill != NULL && esFill == 0) {
+		struct task_struct * fill = list_head_to_task_struct(fill);
+		
+		if(fill->PID == pid) esFill = 1;
+		else fill = fill->next;
+	}
+	
+	if(esFill == 0) return -1;
+	 
+	struct list_head * blocks = list_first(&blocked);
+	
+	while(blocks != NULL) {
+		struct task_struct * block = list_head_to_task_struct(blocks);
+		
+		if(block->PID == pid) {
+			list_del(&(block->list));
+			list_add_tail(&(block->list), &readyqueue);
+			return 0;
+		}
+		
+		blocks = blocks->next;
+	}
+	
+	++(fill->pending_unblocks);
+	return 0;
+}
 int sys_write(int fd, char * buffer, int size) {
     char bufferAux[size];
 	int checkFd = check_fd(fd, ESCRIPTURA);

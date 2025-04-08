@@ -107,3 +107,91 @@ forkSinError:
 
 	popl %ebp
 	ret
+	
+ENTRY(exit)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $1, %eax
+	
+	pushl $exitRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+exitRet:
+	
+	popl %ebp
+	addl $4, %esp
+	cmpl $0, %eax
+	jge exitSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+exitSinError:
+
+	popl %ebp
+	ret	
+
+ENTRY(block)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $5, %eax
+	
+	pushl $blockRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+blockRet:
+	
+	popl %ebp
+	addl $4, %esp
+	cmpl $0, %eax
+	jge blockSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+blockSinError:
+
+	popl %ebp
+	ret
+	
+ENTRY(unblock)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //pid -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $5, %eax
+	
+	pushl $unblockRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+unblockRet:
+	
+	popl %ebp
+	addl $4, %esp
+	cmpl $0, %eax
+	jge unblockSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+unblockSinError:
+
+	popl %ebp
+	ret	

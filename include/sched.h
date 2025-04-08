@@ -21,6 +21,9 @@ struct task_struct {
   struct list_head list;
   unsigned long k_esp;
   int quantum;
+  int pending_unblocks;
+  struct list_head fills;
+  struct list_head pare;
 };
 
 union task_union {
@@ -29,7 +32,6 @@ union task_union {
 };
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
-
 
 extern struct list_head blocked;
 extern struct list_head freequeue;
@@ -50,11 +52,9 @@ void init_idle(void);
 
 void init_sched(void);
 
-
 void cambio_stack(unsigned long *save_sp, unsigned long new_sp);
 
 struct task_struct *current();
-
 
 void task_switch(union task_union *t);
 

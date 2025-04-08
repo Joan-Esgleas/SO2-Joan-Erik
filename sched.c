@@ -6,8 +6,6 @@
 #include "include/list.h"
 #include "include/mm.h"
 #include "include/types.h"
-#include <sched.h>
-#include <mm.h>
 #include <io.h>
 #include <mm.h>
 #include <sched.h>
@@ -61,13 +59,15 @@ void cpu_idle(void) {
   }
 }
 
-
 void init_idle(void) {
   struct list_head *e = list_first(&freequeue);
   struct task_struct *ct = list_head_to_task_struct(e);
   list_del(e);
 
   ct->PID = 0;
+  ct->pending_unblocks = 0;
+  INIT_LIST_HEAD(&(ct->fills));
+  INIT_LIST_HEAD(&(ct->pare));
   set_quantum(ct,0);
   allocate_DIR(ct);
   ((union task_union *)ct)->stack[KERNEL_STACK_SIZE - 1] =
@@ -84,6 +84,9 @@ void init_task1(void) {
   list_del(e);
 
   ct->PID = 1;
+  ct->pending_unblocks = 0;
+  INIT_LIST_HEAD(&(ct->fills));
+  INIT_LIST_HEAD(&(ct->pare));
   set_quantum(ct,DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
   allocate_DIR(ct);
@@ -122,12 +125,6 @@ void set_quantum(struct task_struct *t, int new_quantum) {
 }
 
 void sched_next_rr() {
-  // char pidProceso[9];
-  // stringNumHex(pidProceso, current()->PID);
-  // printk("\nProceso actual con PID: 0x");
-  // printk(pidProceso);
-  // printk("\n");
-
   struct list_head *e = list_first(&readyqueue);
   struct task_struct *ct = list_head_to_task_struct(e);
   update_process_state_rr(ct, NULL);
