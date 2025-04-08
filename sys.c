@@ -20,7 +20,6 @@
 #define ESCRIPTURA 1
 #define WRITE_AUX_BUFF_MAX_SIZE 1024
 
-extern struct list_head freequeue, readyqueue;
 
 int pidGlobal = 1000;
 
