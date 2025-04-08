@@ -7,8 +7,8 @@ ENTRY (sys_call_table)
 	.long sys_fork//2
 	.long sys_ni_syscall//3
 	.long sys_write//4
-	.long sys_ni_syscall//5
-	.long sys_ni_syscall//6
+	.long sys_block//5
+	.long sys_unblock//6
 	.long sys_ni_syscall//7
 	.long sys_ni_syscall//8
 	.long sys_ni_syscall//9
