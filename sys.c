@@ -135,7 +135,21 @@ int sys_fork() {
   return fill->task.PID;
 }
 
-void sys_exit() {}
+void sys_exit() 
+{
+	  struct task_struct * ct = current();
+	  page_table_entry * ctTP = get_PT(ct);
+	  
+	  for(int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
+	  	free_frame(get_frame(ctTP, i));
+	  	del_ss_pag(ctTP, i);
+	  }
+	  
+	  ct->PID = -1;
+	  ct->dir_pages_baseAddr = NULL;
+	  list_add_tail(&(ct->list), &freequeue);
+	  sched_next_rr();
+}
 
 char bufferAux[WRITE_AUX_BUFF_MAX_SIZE];
 

@@ -107,3 +107,31 @@ forkSinError:
 
 	popl %ebp
 	ret
+	
+ENTRY(exit)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $1, %eax
+	
+	pushl $exitRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+exitRet:
+	
+	popl %ebp
+	addl $4, %esp
+	cmpl $0, %eax
+	jge exitSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+exitSinError:
+
+	popl %ebp
+	ret	

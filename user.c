@@ -17,27 +17,42 @@ int __attribute__ ((__section__(".text.main")))
 	
 	//char * mensaje = "\nPrueba del write en el user.c\n";
 	//if(write(1, mensaje, 31) < 0) perror();
-    
-    //fork();
-    //fork();
-    int pid = getpid();
-    char p[12];
-    itoa(pid,p);
-    p[11] = '\n';
+    int estado = 0;
+    fork();
+    fork();
+    if(getpid() == 1001 && estado == 0) {
+	int pid = getpid();
+    	char p[12];
+    	itoa(pid,p);
+    	p[11] = '\n';
 	if(write(1, p, 12) < 0) perror();
+	estado++;
+	exit();
+     }
+     else if(getpid() == 1002 && estado == 0) {
+	int pid = getpid();
+    	char p[12];
+    	itoa(pid,p);
+    	p[11] = '\n';
+	if(write(1, p, 12) < 0) perror();
+	estado++;
+     }
+	
     
-    char write_test[20] = "1234567890123456789\n";
-
-    if(write(1,write_test,20) < 0) perror(); 
-
     while(1) {
       int temp2 = add(0x42,0x666);
       int temp1 = addAsm(0x42,0x666);
+    
       int time = gettime();
       char m[12];
       itoa(time,m);
 	  //if(write(1, m, 12) < 0) perror();
       //char* p = 0;
 	  //*p = 'x';
+      int pid = getpid();
+      char p[12];
+      itoa(pid,p);
+      p[11] = '\n';
+      if(write(1, p, 12) < 0) perror();
     }
 }

@@ -11,17 +11,16 @@
 #include <segment.h>
 #include <types.h>
 
-
 #include <zeos_interrupt.h>
 
 Gate idt[IDT_ENTRIES];
 Register idtR;
 
 char char_map[] = {'\0', '\0', '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',
-                   '9',  '0',  '\'', 'ยก',  '\0', '\0', 'q',  'w',  'e',  'r',
+                   '9',  '0',  '\'', 'ก',  '\0', '\0', 'q',  'w',  'e',  'r',
                    't',  'y',  'u',  'i',  'o',  'p',  '`',  '+',  '\0', '\0',
-                   'a',  's',  'd',  'f',  'g',  'h',  'j',  'k',  'l',  'รฑ',
-                   '\0', 'ยบ',  '\0', 'รง',  'z',  'x',  'c',  'v',  'b',  'n',
+                   'a',  's',  'd',  'f',  'g',  'h',  'j',  'k',  'l',  '๑',
+                   '\0', 'บ',  '\0', '็',  'z',  'x',  'c',  'v',  'b',  'n',
                    'm',  ',',  '.',  '-',  '\0', '*',  '\0', '\0', '\0', '\0',
                    '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0',
                    '\0', '7',  '8',  '9',  '-',  '4',  '5',  '6',  '+',  '1',
@@ -136,7 +135,6 @@ void clock_routine() {
     sched_next_rr();
   }
 }
-
 
 void page_fault_routine_2(unsigned long error, unsigned long eip) {
   char errorStr[9];

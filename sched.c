@@ -6,8 +6,6 @@
 #include "include/list.h"
 #include "include/mm.h"
 #include "include/types.h"
-#include <sched.h>
-#include <mm.h>
 #include <io.h>
 #include <mm.h>
 #include <sched.h>
@@ -60,7 +58,6 @@ void cpu_idle(void) {
     ;
   }
 }
-
 
 void init_idle(void) {
   struct list_head *e = list_first(&freequeue);
@@ -122,12 +119,6 @@ void set_quantum(struct task_struct *t, int new_quantum) {
 }
 
 void sched_next_rr() {
-  // char pidProceso[9];
-  // stringNumHex(pidProceso, current()->PID);
-  // printk("\nProceso actual con PID: 0x");
-  // printk(pidProceso);
-  // printk("\n");
-
   struct list_head *e = list_first(&readyqueue);
   struct task_struct *ct = list_head_to_task_struct(e);
   update_process_state_rr(ct, NULL);
