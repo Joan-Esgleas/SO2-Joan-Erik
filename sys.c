@@ -227,17 +227,5 @@ int sys_unblock(int pid)
 	
 	return -1;
 }
-int sys_write(int fd, char * buffer, int size) {
-    char bufferAux[size];
-	int checkFd = check_fd(fd, ESCRIPTURA);
-	if(checkFd) return checkFd;
-	else if(buffer == NULL) return EFAULT;
-	else if (size <= 0) return EINVAL;
-	else {
-		copy_from_user(buffer, bufferAux, size);
-		int ret = sys_write_console(bufferAux, size);
-		return ret;
-	}
-}
 
 int sys_gettime() { return zeos_tick; }
