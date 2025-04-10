@@ -2,6 +2,7 @@
  * sys.c - Syscalls implementation
  */
 #include "include/interrupt.h"
+#include "include/list.h"
 #include <devices.h>
 
 #include <utils.h>
@@ -20,7 +21,6 @@
 #define ESCRIPTURA 1
 #define WRITE_AUX_BUFF_MAX_SIZE 1024
 
-
 int pidGlobal = 1000;
 
 int ret_from_fork() { return 0; }
@@ -37,15 +37,15 @@ int sys_ni_syscall() { return -38; /*ENOSYS*/ }
 
 int sys_getpid() { return current()->PID; }
 
-int sys_fork()
-{
-  //a) en el document:
-  if(list_empty(&freequeue)) return -ENOMEM; //Retorna un error de que no hi ha memoria 
-  
-  //S'agafa un PCB de la freequeue
-  struct list_head * e = list_first(&freequeue);
-  union task_union * fill = (union task_union *)list_head_to_task_struct(e);
-  struct task_struct * fillTs = list_head_to_task_struct(e);
+int sys_fork() {
+  // a) en el document:
+  if (list_empty(&freequeue))
+    return -ENOMEM; // Retorna un error de que no hi ha memoria
+
+  // S'agafa un PCB de la freequeue
+  struct list_head *e = list_first(&freequeue);
+  union task_union *fill = (union task_union *)list_head_to_task_struct(e);
+  struct task_struct *fillTs = list_head_to_task_struct(e);
   list_del(e);
 
   // b) en el document:
@@ -118,62 +118,81 @@ int sys_fork()
 
   // g) en el document:
   fill->task.PID = pidGlobal++;
-  
-  //Informacio que hem d'afegir per el block i el unblock
+
+  // Informacio que hem d'afegir per el block i el unblock
   fillTs->pare = current();
 
   list_add_tail(&fillTs->pareList, &(current()->fills));
 
   INIT_LIST_HEAD(&(fillTs->fills));
-  
+
   fillTs->pending_unblocks = 0;
-  
-  //i) en el document:
-  //posem el ebp fals de 0 i el ret_from_fork per posar a 0 el valor de retorn de la funcio
-  ((union task_union*)fill)->stack[KERNEL_STACK_SIZE-19] = (unsigned long) 0;
-  ((union task_union*)fill)->stack[KERNEL_STACK_SIZE-18] = (unsigned long) &ret_from_fork;
-  //fem que el kernel esp apunti al 0 del ebp per fer el truquillo
-  fill->task.k_esp = &((union task_union*)fill)->stack[KERNEL_STACK_SIZE-19];
-  
-  //j) en el document:
+
+  // i) en el document:
+  // posem el ebp fals de 0 i el ret_from_fork per posar a 0 el valor de retorn
+  // de la funcio
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19] = (unsigned long)0;
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 18] =
+      (unsigned long)&ret_from_fork;
+  // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
+  fill->task.k_esp = &((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
+
+  // j) en el document:
   list_add_tail(&(fill->task.list), &readyqueue);
 
   // k) en el document:
   return fill->task.PID;
 }
 
-void sys_exit() 
-{
-	  struct task_struct * ct = current();
-	  page_table_entry * ctTP = get_PT(ct);
-	  
-	  for(int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
-	  	free_frame(get_frame(ctTP, i));
-	  	del_ss_pag(ctTP, i);
-	  }
-	  
-	  ct->PID = -1;
-	  ct->dir_pages_baseAddr = NULL;
-	  
-	  list_del(&(current()->pareList));
+void sys_exit() {
+  struct task_struct *ct = current();
+  page_table_entry *ctTP = get_PT(ct);
 
-	  struct list_head *e;
-	  list_for_each(e, &(current()->fills)) {
-		list_add_tail(e, &(idle_task->fills));
-	  }
+  for (int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
+    free_frame(get_frame(ctTP, i));
+    del_ss_pag(ctTP, i);
+  }
 
-	  list_add_tail(&(ct->list), &freequeue);
-	  sched_next_rr();
+  ct->PID = -1;
+  ct->dir_pages_baseAddr = NULL;
+  ct->pare = NULL;
+
+  list_del(&(current()->pareList));
+
+  struct list_head *e;
+  list_for_each(e, &(current()->fills)) {
+    list_head_to_task_struct(e)->pare = idle_task;
+    list_add_tail(e, &(idle_task->fills));
+  }
+
+  update_process_state_rr(current(), &freequeue);
+  if (list_empty(&readyqueue))
+    task_switch((union task_union *)idle_task);
+  else {
+    e = list_first(&readyqueue);
+    struct task_struct *nt = list_head_to_task_struct(e);
+    update_process_state_rr(nt, NULL);
+    tick_counter = get_quantum(nt);
+    task_switch((union task_union *)nt);
+  }
 }
 
-void sys_block()
-{
-	struct task_struct * ct = current();
-	if(ct->pending_unblocks == 0) {
-		list_add_tail(&(ct->list), &blocked);
-		sched_next_rr();
-	}
-	else --(ct->pending_unblocks);
+void sys_block() {
+  struct task_struct *ct = current();
+  if (ct->pending_unblocks == 0) {
+    list_add_tail(&(ct->list), &blocked);
+    struct list_head *e;
+    if (list_empty(&readyqueue))
+      task_switch((union task_union *)idle_task);
+    else {
+      e = list_first(&readyqueue);
+      struct task_struct *nt = list_head_to_task_struct(e);
+      update_process_state_rr(nt, NULL);
+      tick_counter = get_quantum(nt);
+      task_switch((union task_union *)nt);
+    }
+  } else
+    --(ct->pending_unblocks);
 }
 char bufferAux[WRITE_AUX_BUFF_MAX_SIZE];
 
@@ -198,34 +217,34 @@ int sys_write(int fd, char *buffer, int size) {
     return ret;
   }
 }
-int sys_unblock(int pid)
-{
-	struct list_head * e;
-	
-	list_for_each(e, &(current()->fills)) {
-		struct task_struct * fill = list_head_to_task_struct(e);
-		
-		if(fill->PID == pid) {
-			struct list_head * e2;
-			
-			int estaBloquejat = 0;
-			
-			list_for_each(e2, &blocked) {
-				struct task_struct * block = list_head_to_task_struct(e2);
-				if(block->PID == pid) {
-					list_del(&(block->list));
-					list_add_tail(&(block->list), &readyqueue);
-					estaBloquejat = 1;
-				}
-			}
-			
-			if(estaBloquejat == 0) ++(fill->pending_unblocks);
-			
-			return 0;
-		}
-	}
-	
-	return -1;
+int sys_unblock(int pid) {
+  struct list_head *e;
+
+  list_for_each(e, &(current()->fills)) {
+    struct task_struct *fill = list_head_to_task_struct(e);
+
+    if (fill->PID == pid) {
+      struct list_head *e2;
+
+      int estaBloquejat = 0;
+
+      list_for_each(e2, &blocked) {
+        struct task_struct *block = list_head_to_task_struct(e2);
+        if (block->PID == pid) {
+          list_del(&(block->list));
+          list_add_tail(&(block->list), &readyqueue);
+          estaBloquejat = 1;
+        }
+      }
+
+      if (estaBloquejat == 0)
+        ++(fill->pending_unblocks);
+
+      return 0;
+    }
+  }
+
+  return -1;
 }
 
 int sys_gettime() { return zeos_tick; }
