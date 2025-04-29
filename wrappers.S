@@ -42,6 +42,44 @@ writeSinError:
 	popl %ebp
 	ret
 
+ENTRY(read)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Se guardan estos registros porque hacemos fast syscall
+	pushl %edx
+	pushl %ecx
+	
+	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
+	mov 0x08(%ebp), %edx  //b -> edx
+	mov 0x0c(%ebp), %ecx  //maxchars -> ecx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $7, %eax
+	
+	pushl $readRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+	
+readRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %ecx
+	popl %edx
+	cmpl $0, %eax
+	jge readSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+readSinError:
+
+	popl %ebp
+	ret
+
 ENTRY(gettime)
   pushl %ebp
   mov %esp,%ebp

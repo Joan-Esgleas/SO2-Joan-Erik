@@ -15,6 +15,51 @@
 
 Gate idt[IDT_ENTRIES];
 Register idtR;
+struct Key_buffer kb_buffer = {.head = 0, .tail = 0, .can_be_read = 1};
+
+void kb_buffer_push(char c) {
+  unsigned int next = (kb_buffer.head + 1) % KB_BUFFER_SIZE;
+  // if (next != kb_buffer.tail) { // evitar sobreescribir si está lleno
+  kb_buffer.buffer[kb_buffer.head] = c;
+  kb_buffer.head = next;
+  //}
+}
+
+char kb_buffer_pop() {
+  char c = kb_buffer.buffer[kb_buffer.tail];
+  kb_buffer.tail = (kb_buffer.tail + 1) % KB_BUFFER_SIZE;
+  return c;
+}
+
+char kb_buffer_emtpy() {
+  if (kb_buffer.head == kb_buffer.tail)
+    return 0;
+  return 1;
+}
+
+unsigned int kb_buffer_size() {
+  if (kb_buffer.head >= kb_buffer.tail) {
+    return kb_buffer.head - kb_buffer.tail;
+  } else {
+    return KB_BUFFER_SIZE - kb_buffer.tail + kb_buffer.head;
+  }
+}
+
+char kb_buffer_can_be_read() {
+  return kb_buffer.can_be_read;
+}
+
+int kb_buffer_ocupar() {
+  if(kb_buffer.can_be_read){
+    kb_buffer.can_be_read = 0;
+    return 0;
+  }
+  return -1;
+}
+
+void kb_buffer_desocupar() {
+  kb_buffer.can_be_read = 1;
+}
 
 char char_map[] = {'\0', '\0', '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',
                    '9',  '0',  '\'', '¡',  '\0', '\0', 'q',  'w',  'e',  'r',
@@ -122,8 +167,8 @@ void keyboard_routine() {
     char char_print = char_map[p_ch];
     if (char_print == '\0')
       char_print = 'C';
+    kb_buffer_push(char_print);
     printc_xy(0, 0, char_print);
-
   }
 }
 
@@ -131,7 +176,7 @@ void clock_routine() {
   zeos_show_clock();
   zeos_tick += 10;
   update_sched_data_rr();
-  if(needs_sched_rr()){
+  if (needs_sched_rr()) {
     sched_next_rr();
   }
 }

@@ -2,6 +2,7 @@
  * sys.c - Syscalls implementation
  */
 #include "include/interrupt.h"
+#include "include/io.h"
 #include "include/list.h"
 #include <devices.h>
 
@@ -20,6 +21,7 @@
 #define LECTURA 0
 #define ESCRIPTURA 1
 #define WRITE_AUX_BUFF_MAX_SIZE 1024
+#define READ_AUX_BUFF_MAX_SIZE 1024
 
 int pidGlobal = 1000;
 
@@ -217,6 +219,39 @@ int sys_write(int fd, char *buffer, int size) {
     return ret;
   }
 }
+
+char tmpbuff[READ_AUX_BUFF_MAX_SIZE];
+
+int sys_read(char *b, int maxchars) {
+  if (b == NULL)
+    return -EFAULT;
+  else if (maxchars < 0)
+    return -EINVAL;
+  else if (maxchars >= READ_AUX_BUFF_MAX_SIZE)
+    return -EINVAL;
+
+  while (kb_buffer_size() < maxchars) {
+    struct task_struct *ct = current();
+    struct list_head *e;
+    if (list_empty(&readyqueue)) {
+      list_add_tail(&(ct->list), &readyqueue);
+      task_switch((union task_union *)idle_task);
+    } else {
+      e = list_first(&readyqueue);
+      list_add_tail(&(ct->list), &readyqueue);
+      struct task_struct *nt = list_head_to_task_struct(e);
+      update_process_state_rr(nt, NULL);
+      tick_counter = get_quantum(nt);
+      task_switch((union task_union *)nt);
+    }
+  }
+  for (int i = 0; i < maxchars; ++i) {
+    tmpbuff[i] = kb_buffer_pop();
+  }
+  copy_to_user(tmpbuff, b, maxchars);
+  return maxchars * sizeof(char);
+}
+
 int sys_unblock(int pid) {
   struct list_head *e;
 
