@@ -13,7 +13,7 @@
 #define KERNEL_STACK_SIZE 1024
 #define DEFAULT_QUANTUM_TICKS 10
 
-enum state_t { ST_RUN, ST_READY, ST_BLOCKED };
+enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_READBLOCKED };
 
 struct task_struct {
   int PID; /* Process ID. This MUST be the first field of the struct. */
@@ -23,8 +23,9 @@ struct task_struct {
   int quantum;
   int pending_unblocks;
   struct list_head fills;
-  struct list_head pareList;
+  struct list_head parentAnchor;
   struct task_struct * pare;
+  enum state_t current_state;
 };
 
 union task_union {
@@ -35,6 +36,7 @@ union task_union {
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
 extern struct list_head blocked;
+extern struct list_head read_blocked;
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
 extern struct task_struct *idle_task;

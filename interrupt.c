@@ -45,21 +45,17 @@ unsigned int kb_buffer_size() {
   }
 }
 
-char kb_buffer_can_be_read() {
-  return kb_buffer.can_be_read;
-}
+char kb_buffer_can_be_read() { return kb_buffer.can_be_read; }
 
 int kb_buffer_ocupar() {
-  if(kb_buffer.can_be_read){
+  if (kb_buffer.can_be_read) {
     kb_buffer.can_be_read = 0;
     return 0;
   }
   return -1;
 }
 
-void kb_buffer_desocupar() {
-  kb_buffer.can_be_read = 1;
-}
+void kb_buffer_desocupar() { kb_buffer.can_be_read = 1; }
 
 char char_map[] = {'\0', '\0', '1',  '2',  '3',  '4',  '5',  '6',  '7',  '8',
                    '9',  '0',  '\'', '¡',  '\0', '\0', 'q',  'w',  'e',  'r',
@@ -168,6 +164,13 @@ void keyboard_routine() {
     if (char_print == '\0')
       char_print = 'C';
     kb_buffer_push(char_print);
+
+    struct list_head *e;
+    if (!list_empty(&read_blocked)) {
+      e = list_first(&read_blocked);
+      struct task_struct *nt = list_head_to_task_struct(e);
+      task_switch((union task_union *)nt);
+    }
     printc_xy(0, 0, char_print);
   }
 }
@@ -177,6 +180,8 @@ void clock_routine() {
   zeos_tick += 10;
   update_sched_data_rr();
   if (needs_sched_rr()) {
+    if (current()->PID != 0)
+      update_process_state_rr(current(), &readyqueue);
     sched_next_rr();
   }
 }
