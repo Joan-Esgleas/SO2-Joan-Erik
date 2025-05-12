@@ -195,4 +195,78 @@ unblockRet:
 unblockSinError:
 
 	popl %ebp
-	ret	
+	ret
+
+ENTRY(gotoxy)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	pushl %ecx
+	
+	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
+	mov 0x08(%ebp), %edx  //x -> edx
+	mov 0x0c(%ebp), %ecx  //y -> ecx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $8, %eax
+	
+	pushl $gotoxyRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+	
+gotoxyRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %ecx
+	popl %edx
+	cmpl $0, %eax
+	jge gotoxySinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+gotoxySinError:
+
+	popl %ebp
+	ret
+	
+ENTRY(set_color)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	pushl %ecx
+	
+	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
+	mov 0x08(%ebp), %edx  //x -> edx
+	mov 0x0c(%ebp), %ecx  //y -> ecx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $9, %eax
+	
+	pushl $setColorRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+	
+setColorRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %ecx
+	popl %edx
+	cmpl $0, %eax
+	jge setColorSinError
+	negl %eax
+	movl %eax, errno
+	movl -1, %eax
+	
+setColorSinError:
+
+	popl %ebp
+	ret

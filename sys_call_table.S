@@ -10,8 +10,8 @@ ENTRY (sys_call_table)
 	.long sys_block//5
 	.long sys_unblock//6
 	.long sys_ni_syscall//7
-	.long sys_ni_syscall//8
-	.long sys_ni_syscall//9
+	.long sys_gotoxy//8
+	.long sys_set_color//9
 	.long sys_gettime//10
 	.long sys_ni_syscall//11
 	.long sys_ni_syscall//12

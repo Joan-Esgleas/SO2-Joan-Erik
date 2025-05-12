@@ -15,22 +15,13 @@ int __attribute__ ((__section__(".text.main")))
     /* Next line, tries to move value 0 to CR3 register. This register is a privileged one, and so it will raise an exception */
      /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 	
-    int ret = fork();
+    gotoxy(0, 0);
+    char * holaa = "Holaaaaaaaaaaaa";
+    if(write(1, holaa, strlen(holaa)) < 0) perror();
+    set_color(1, 3);
+    holaa = "Holaaaaaaaaaaaa";
+    if(write(1, holaa, strlen(holaa)) < 0) perror();
     
-    if(ret == 0) {
-	char * mensaje = "\nSoy el hijo, me bloqueare y mi padre me desbloqueara\n";
-	if(write(1, mensaje, strlen(mensaje)) < 0) perror();
-	
-	block();
-	
-	mensaje = "\nYa me han desbloqueado\n";
-	if(write(1, mensaje, strlen(mensaje)) < 0) perror();
-    }
-    else {
-    	for(int i = 0; i < 1000000; i++);
-    	
-    	unblock(ret);
-    }
     while(1) {
     }
 }
