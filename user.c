@@ -64,16 +64,10 @@ void test_block_unblock() {
     exit();
   } else {
     // Padre
-    int i = 0;
-    while (i <= 10000) {
-      int temp = 1;
-      i += temp;
-    }
+    print("Padre: Desbloqueando al Hijo\n");
     int result = unblock(pid);
     if (result < 0) {
       perror();
-    } else {
-      print("Padre: Hijo desbloqueado\n");
     }
   }
 }
@@ -120,7 +114,6 @@ void test_read() {
   }
 }
 
-/*
 void test_combinado2() {
   print("\n==== Test de comb 2 ====\n");
   int pid = fork();
@@ -144,11 +137,10 @@ void test_combinado2() {
       gotoxy(5, 17);
       print("Hijo leyo: ");
       write(1, buf, 4);
-      print("\nHijo: Desbloqueado y finalizado\n");
     }
     exit();
   } else {
-    write(1, "Padre: Introduce 4 caracteres: ", 30);
+    print("\nPadre: Introduce 4 caracteres: \n");
     char buf[10];
     int n = read(buf, 4);
     if (n < 0) {
@@ -163,54 +155,22 @@ void test_combinado2() {
     }
   }
 }
-*/
-
-void test_combinado2() {
-  print("\n==== Test de combinado 2 ====\n");
-  int pid = fork();
-  if (pid < 0) {
-    perror();
-  } else if (pid == 0) {
-    // Hijo
-    print("Hijo: Me bloqueo a mi mismo\n");
-    block();
-    print("Hijo: He sido desbloqueado\n");
-    exit();
-  } else {
-    // Padre
-    char buffer[5];
-    print("Introduce 5 caracteres: ");
-    int n = read(buffer, 5);
-    if (n < 0) {
-      perror();
-    } else {
-      print("\nHas introducido: ");
-      write(1, buffer, 5);
-      write(1, "\n", 1);
-    }
-
-    int result = unblock(pid);
-    if (result < 0) {
-      perror();
-    } else {
-      print("Padre: Hijo desbloqueado\n");
-    }
-  }
-}
 
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  // test_write();
-  // test_set_color();
-  // test_gotoxy();
-  // test_fork();
-  // test_block_unblock();
-  // test_read();
-  // test_combinado1();
-   test_combinado2();
+  test_write();
+  test_set_color();
+  test_gotoxy();
+  test_fork();
+  test_block_unblock();
+  test_read();
+  test_combinado1();
+  test_combinado2();
+
+  print("\n=========FIN TEST==========\n");
 
   while (1) {
   }

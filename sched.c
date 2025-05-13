@@ -140,29 +140,32 @@ void sched_next_rr() {
     struct task_struct *nt = list_head_to_task_struct(e);
     update_process_state_rr(nt, NULL);
     tick_counter = get_quantum(nt);
-    if(current()->PID != nt->PID)
+    if (current()->PID != nt->PID)
       task_switch((union task_union *)nt);
   }
 }
 
 void update_process_state_rr(struct task_struct *t, struct list_head *dest) {
   struct list_head *current_list_head = &(t->list);
+  if (t->PID == 0)
+    return;
   if (dest == NULL) {
     t->current_state = ST_RUN;
-    if (t->PID > 0)
+    if (t->PID > 0) {
       list_del(current_list_head);
+    }
     return;
   } else if (dest == &readyqueue) {
+    if (t->current_state != ST_RUN)
+      list_del(current_list_head);
     t->current_state = ST_READY;
-
   } else if (dest == &blocked) {
     t->current_state = ST_BLOCKED;
 
   } else if (dest == &read_blocked) {
     t->current_state = ST_READBLOCKED;
   }
-  if (t->PID != 0)
-    list_add_tail(current_list_head, dest);
+  list_add_tail(current_list_head, dest);
 }
 
 int needs_sched_rr() { return (tick_counter <= 0 && !list_empty(&readyqueue)); }

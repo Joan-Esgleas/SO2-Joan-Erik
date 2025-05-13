@@ -220,6 +220,8 @@ int sys_unblock(int pid) {
       ret = 0;
     }
   }
+  update_process_state_rr(current(), &readyqueue);
+  sched_next_rr();
   return ret;
 }
 
