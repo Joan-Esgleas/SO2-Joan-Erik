@@ -160,9 +160,10 @@ void clock_routine() {
   zeos_tick += 10;
   update_sched_data_rr();
   if (needs_sched_rr()) {
-    if (current()->PID != 0)
-      update_process_state_rr(current(), &readyqueue);
+    update_process_state_rr(current(), &readyqueue);
     sched_next_rr();
+  }else {
+    tick_counter = get_quantum(current());
   }
 }
 

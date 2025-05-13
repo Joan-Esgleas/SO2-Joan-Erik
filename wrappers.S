@@ -107,14 +107,6 @@ getpidRet:
 	
 	popl %ebp
 	addl $4, %esp
-	cmpl $0, %eax
-	jge getpidSinError
-	negl %eax
-	movl %eax, errno
-	movl $-1, %eax
-	
-getpidSinError:
-
 	popl %ebp
 	ret
 	
@@ -163,14 +155,6 @@ exitRet:
 	
 	popl %ebp
 	addl $4, %esp
-	cmpl $0, %eax
-	jge exitSinError
-	negl %eax
-	movl %eax, errno
-	movl $-1, %eax
-	
-exitSinError:
-
 	popl %ebp
 	ret	
 

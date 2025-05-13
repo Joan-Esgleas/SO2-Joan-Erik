@@ -239,7 +239,6 @@ int sys_read(char *b, int maxchars) {
   while (kb_buffer_size() < maxchars) {
     sched_next_rr();
   }
-
   for (int i = 0; i < maxchars; ++i) {
     tmpbuff[i] = kb_buffer_pop();
   }

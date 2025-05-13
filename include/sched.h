@@ -13,7 +13,7 @@
 #define KERNEL_STACK_SIZE 1024
 #define DEFAULT_QUANTUM_TICKS 10
 
-enum state_t { ST_RUN, ST_READY, ST_BLOCKED, ST_READBLOCKED };
+enum state_t { ST_RUN, ST_READY,  ST_BLOCKED, ST_READBLOCKED };
 
 struct task_struct {
   int PID; /* Process ID. This MUST be the first field of the struct. */
