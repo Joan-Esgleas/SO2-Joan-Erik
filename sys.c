@@ -189,8 +189,10 @@ int sys_write(int fd, char *buffer, int size) {
   int checkFd = check_fd(fd, ESCRIPTURA);
   if (checkFd)
     return checkFd;
-  else if (buffer == NULL) return -EFAULT;
-  else if (size <= 0) return -EINVAL;
+  else if (buffer == NULL)
+    return -EFAULT;
+  else if (size <= 0)
+    return -EINVAL;
   else {
     int ret = 0;
     while (size > WRITE_AUX_BUFF_MAX_SIZE) {
@@ -250,19 +252,19 @@ int sys_read(char *b, int maxchars) {
 
 int sys_gettime() { return zeos_tick; }
 
-int sys_gotoxy(int novaX, int novaY) 
-{
-	if(novaX < 0 || novaX >= 25 || novaY < 0 || novaY >= 80) return -EINVAL; //NUM_ROWS = 25, NUM_COLUMNS = 80
-	
-	x = (Byte) novaX;
-	y = (Byte) novaY;
-	return novaX + novaY;
+int sys_gotoxy(int novaX, int novaY) {
+  if (novaX < 0 || novaX >= 25 || novaY < 0 || novaY >= 80)
+    return -EINVAL; // NUM_ROWS = 25, NUM_COLUMNS = 80
+
+  x = (Byte)novaX;
+  y = (Byte)novaY;
+  return novaX + novaY;
 }
 
-int sys_set_color(int fg, int bg)
-{
-	if(fg < 0 || bg < 0 || fg > 16 || bg > 16) return -EINVAL;
-	foreground = (Byte) fg;
-	background = (Byte) bg;
-	return 0;
+int sys_set_color(int fg, int bg) {
+  if (fg < 0 || bg < 0 || fg > 16 || bg > 16)
+    return -EINVAL;
+  foreground = (Byte)fg;
+  background = (Byte)bg;
+  return 0;
 }

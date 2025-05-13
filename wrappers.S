@@ -35,7 +35,7 @@ writeRet:
 	jge writeSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 writeSinError:
 
@@ -73,7 +73,7 @@ readRet:
 	jge readSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 readSinError:
 
@@ -111,7 +111,7 @@ getpidRet:
 	jge getpidSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 getpidSinError:
 
@@ -139,7 +139,7 @@ forkRet:
 	jge forkSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 forkSinError:
 
@@ -167,7 +167,7 @@ exitRet:
 	jge exitSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 exitSinError:
 
@@ -195,7 +195,7 @@ blockRet:
 	jge blockSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 blockSinError:
 
@@ -228,7 +228,7 @@ unblockRet:
 	jge unblockSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 unblockSinError:
 
@@ -265,7 +265,7 @@ gotoxyRet:
 	jge gotoxySinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 gotoxySinError:
 
@@ -302,7 +302,7 @@ setColorRet:
 	jge setColorSinError
 	negl %eax
 	movl %eax, errno
-	movl -1, %eax
+	movl $-1, %eax
 	
 setColorSinError:
 

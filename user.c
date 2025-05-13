@@ -25,6 +25,8 @@ int __attribute__((__section__(".text.main"))) main(void) {
     if (write(1, mensaje, strlen(mensaje)) < 0)
       perror();
     char b[5];
+    set_color(1, 3);
+    gotoxy(7,7);
     read(b, 5);
     if (write(1, b, 5) < 0)
       perror();
