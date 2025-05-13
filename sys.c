@@ -2,6 +2,7 @@
  * sys.c - Syscalls implementation
  */
 #include "include/interrupt.h"
+#include "include/io.h"
 #include "include/list.h"
 #include <devices.h>
 
@@ -20,6 +21,7 @@
 #define LECTURA 0
 #define ESCRIPTURA 1
 #define WRITE_AUX_BUFF_MAX_SIZE 1024
+#define READ_AUX_BUFF_MAX_SIZE 1024
 
 extern Byte x;
 extern Byte y;
@@ -127,7 +129,7 @@ int sys_fork() {
   // Informacio que hem d'afegir per el block i el unblock
   fillTs->pare = current();
 
-  list_add_tail(&fillTs->pareList, &(current()->fills));
+  list_add_tail(&fillTs->parentAnchor, &(current()->fills));
 
   INIT_LIST_HEAD(&(fillTs->fills));
 
@@ -143,7 +145,7 @@ int sys_fork() {
   fill->task.k_esp = &((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
 
   // j) en el document:
-  list_add_tail(&(fill->task.list), &readyqueue);
+  update_process_state_rr(&(fill->task), &readyqueue);
 
   // k) en el document:
   return fill->task.PID;
@@ -162,40 +164,22 @@ void sys_exit() {
   ct->dir_pages_baseAddr = NULL;
   ct->pare = NULL;
 
-  list_del(&(current()->pareList));
+  list_del(&(current()->parentAnchor));
 
   struct list_head *e;
   list_for_each(e, &(current()->fills)) {
     list_head_to_task_struct(e)->pare = idle_task;
     list_add_tail(e, &(idle_task->fills));
   }
-
   update_process_state_rr(current(), &freequeue);
-  if (list_empty(&readyqueue))
-    task_switch((union task_union *)idle_task);
-  else {
-    e = list_first(&readyqueue);
-    struct task_struct *nt = list_head_to_task_struct(e);
-    update_process_state_rr(nt, NULL);
-    tick_counter = get_quantum(nt);
-    task_switch((union task_union *)nt);
-  }
+  sched_next_rr();
 }
 
 void sys_block() {
   struct task_struct *ct = current();
   if (ct->pending_unblocks == 0) {
-    list_add_tail(&(ct->list), &blocked);
-    struct list_head *e;
-    if (list_empty(&readyqueue))
-      task_switch((union task_union *)idle_task);
-    else {
-      e = list_first(&readyqueue);
-      struct task_struct *nt = list_head_to_task_struct(e);
-      update_process_state_rr(nt, NULL);
-      tick_counter = get_quantum(nt);
-      task_switch((union task_union *)nt);
-    }
+    update_process_state_rr(current(), &blocked);
+    sched_next_rr();
   } else
     --(ct->pending_unblocks);
 }
@@ -220,34 +204,48 @@ int sys_write(int fd, char *buffer, int size) {
     return ret;
   }
 }
+
 int sys_unblock(int pid) {
   struct list_head *e;
-
+  int ret = -1;
   list_for_each(e, &(current()->fills)) {
     struct task_struct *fill = list_head_to_task_struct(e);
-
     if (fill->PID == pid) {
-      struct list_head *e2;
-
-      int estaBloquejat = 0;
-
-      list_for_each(e2, &blocked) {
-        struct task_struct *block = list_head_to_task_struct(e2);
-        if (block->PID == pid) {
-          list_del(&(block->list));
-          list_add_tail(&(block->list), &readyqueue);
-          estaBloquejat = 1;
-        }
-      }
-
-      if (estaBloquejat == 0)
+      if (fill->current_state == ST_BLOCKED)
+        update_process_state_rr(fill, &readyqueue);
+      else
         ++(fill->pending_unblocks);
-
-      return 0;
+      ret = 0;
     }
   }
+  return ret;
+}
 
-  return -1;
+char tmpbuff[READ_AUX_BUFF_MAX_SIZE];
+
+int sys_read(char *b, int maxchars) {
+  if (b == NULL)
+    return -EFAULT;
+  else if (maxchars < 0)
+    return -EINVAL;
+  else if (maxchars >= READ_AUX_BUFF_MAX_SIZE)
+    return -EINVAL;
+
+  if (kb_buffer_size() < maxchars)
+    update_process_state_rr(current(), &read_blocked);
+
+  while (kb_buffer_size() < maxchars) {
+    sched_next_rr();
+  }
+
+  for (int i = 0; i < maxchars; ++i) {
+    tmpbuff[i] = kb_buffer_pop();
+  }
+  copy_to_user(tmpbuff, b, maxchars);
+  update_process_state_rr(current(), &readyqueue);
+  sched_next_rr();
+
+  return maxchars * sizeof(char);
 }
 
 int sys_gettime() { return zeos_tick; }

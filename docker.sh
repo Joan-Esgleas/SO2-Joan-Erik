@@ -9,10 +9,24 @@ if [ "$1" == "build" ]; then
 
 elif [ "$1" == "init" ]; then
     # Run the Docker container
+    docker run \
+      -e WAYLAND_DISPLAY=$WAYLAND_DISPLAY \
+      -v /run/user/$(id -u)/wayland-0:/run/user/$(id -u)/wayland-0 \
+      -v /tmp/.X11-unix:/tmp/.X11-unix \
+      -e DISPLAY=$DISPLAY \
+      -v /etc/machine-id:/etc/machine-id \
+      -v /dev/dri:/dev/dri \
+      --device=/dev/dri \
+      --net=host \
+      --volume="$pwd:/home/ubuntu/" \
+      -it so2
+
+elif [ "$1" == "Xinit" ]; then
+    # Run the Docker container
     xhost +local:docker
     docker run --net=host --env="DISPLAY" --volume="$HOME/.Xauthority:/home/so2/.Xauthority:rw" --volume="$pwd:/home/ubuntu/"  -it so2
     xhost -local:docker
-
+ 
 elif [ "$1" == "rm" ]; then
     # Remove the Docker container
     docker image rm -f so2

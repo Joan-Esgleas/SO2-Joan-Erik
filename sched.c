@@ -2,6 +2,7 @@
  * sched.c - initializes struct for task 0 anda task 1
  */
 
+#include "include/interrupt.h"
 #include "include/io.h"
 #include "include/list.h"
 #include "include/mm.h"
@@ -19,6 +20,7 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 }
 #endif
 
+struct list_head read_blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
 struct task_struct *idle_task;
@@ -66,8 +68,9 @@ void init_idle(void) {
 
   ct->PID = 0;
   ct->pending_unblocks = 0;
+  ct->current_state = ST_READY;
   INIT_LIST_HEAD(&(ct->fills));
-  set_quantum(ct,0);
+  set_quantum(ct, 0);
   allocate_DIR(ct);
   ((union task_union *)ct)->stack[KERNEL_STACK_SIZE - 1] =
       (unsigned long)cpu_idle;
@@ -84,8 +87,9 @@ void init_task1(void) {
 
   ct->PID = 1;
   ct->pending_unblocks = 0;
+  ct->current_state = ST_RUN;
   INIT_LIST_HEAD(&(ct->fills));
-  set_quantum(ct,DEFAULT_QUANTUM_TICKS);
+  set_quantum(ct, DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
   allocate_DIR(ct);
 
@@ -108,6 +112,7 @@ void inner_task_switch(union task_union *new) {
 
 void init_sched() {
   INIT_LIST_HEAD(&blocked);
+  INIT_LIST_HEAD(&read_blocked);
   INIT_LIST_HEAD(&freequeue);
   INIT_LIST_HEAD(&readyqueue);
 
@@ -124,28 +129,46 @@ void set_quantum(struct task_struct *t, int new_quantum) {
 }
 
 void sched_next_rr() {
-  struct list_head *e = list_first(&readyqueue);
-  struct task_struct *ct = list_head_to_task_struct(e);
-  update_process_state_rr(ct, NULL);
-  update_process_state_rr(current(), &readyqueue);
-  tick_counter = get_quantum(ct);
-  task_switch((union task_union *)ct);
+  struct list_head *e;
+  if (list_empty(&readyqueue)) {
+    idle_task->current_state = ST_RUN;
+    tick_counter = 0;
+    task_switch((union task_union *)idle_task);
+    return;
+  } else {
+    e = list_first(&readyqueue);
+    struct task_struct *nt = list_head_to_task_struct(e);
+    update_process_state_rr(nt, NULL);
+    tick_counter = get_quantum(nt);
+    if (current()->PID >= 0 && current()->PID != nt->PID)
+      task_switch((union task_union *)nt);
+  }
 }
 
 void update_process_state_rr(struct task_struct *t, struct list_head *dest) {
   struct list_head *current_list_head = &(t->list);
+  if (t->PID <= 0)
+    return;
   if (dest == NULL) {
+    t->current_state = ST_RUN;
     list_del(current_list_head);
     return;
+  } else if (dest == &readyqueue) {
+    if (t->current_state != ST_RUN)
+      list_del(current_list_head);
+    t->current_state = ST_READY;
+
+  } else if (dest == &blocked) {
+    t->current_state = ST_BLOCKED;
+
+  } else if (dest == &read_blocked) {
+    t->current_state = ST_READBLOCKED;
   }
+
   list_add_tail(current_list_head, dest);
 }
 
-int needs_sched_rr() {
-  if (tick_counter <= 0 && !list_empty(&readyqueue))
-    return 1;
-  return 0;
-}
+int needs_sched_rr() { return (tick_counter <= 0 && !list_empty(&readyqueue)); }
 
 void update_sched_data_rr() {
   if (tick_counter > 0)
