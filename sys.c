@@ -31,6 +31,7 @@ extern Byte background;
 int pidGlobal = 1000;
 
 int ret_from_fork() { return 0; }
+int ret_from_new_thread() { return 0; }
 
 int check_fd(int fd, int permissions) {
   if (fd != 1)
@@ -151,6 +152,88 @@ int sys_fork() {
   // k) en el document:
   return fill->task.PID;
 }
+
+int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter) {
+  if (list_empty(&freequeue))
+    return -ENOMEM; // Retorna un error de que no hi ha memoria
+
+  // S'agafa un PCB de la freequeue
+  struct list_head *e = list_first(&freequeue);
+  union task_union *fill = (union task_union *)list_head_to_task_struct(e);
+  struct task_struct *fillTs = list_head_to_task_struct(e);
+  list_del(e);
+
+  copy_data(current(), fill, sizeof(union task_union));
+  allocate_DIR((struct task_struct *)fill);
+
+  int frames[NUM_PAG_DATA];
+  for (int i = 0; i < NUM_PAG_DATA; i++) {
+    frames[i] = alloc_frame();
+
+    if (frames[i] < 0) {
+      for (int j = 0; j < i; j++) {
+        free_frame(frames[j]);
+      }
+      list_add_tail(&fill->task.list, &freequeue);
+      return -ENOMEM;
+    }
+  }
+
+  page_table_entry *fillTP = get_PT((struct task_struct *)fill);
+  page_table_entry *pareTP = get_PT(current());
+
+  for (int i = 0; i < NUM_PAG_KERNEL; i++)
+    set_ss_pag(fillTP, i, get_frame(pareTP, i));
+
+  for (int i = 0; i < NUM_PAG_CODE; i++) {
+    set_ss_pag(fillTP, PAG_LOG_INIT_CODE + i,
+               get_frame(pareTP, PAG_LOG_INIT_CODE + i));
+  }
+
+  for (int i = 0; i < NUM_PAG_DATA; i++) {
+    set_ss_pag(fillTP, PAG_LOG_INIT_DATA + i,
+               get_frame(pareTP, PAG_LOG_INIT_DATA + i));
+  }
+
+
+  // set_cr3(get_DIR(current()));
+
+  fill->task.PID = pidGlobal++;
+  fillTs->pare = current();
+  list_add_tail(&fillTs->parentAnchor, &(current()->fills));
+  INIT_LIST_HEAD(&(fillTs->fills));
+  fillTs->pending_unblocks = 0;
+
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19] = (unsigned long)0;
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 18] =
+      (unsigned long)&ret_from_new_thread;
+
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 5] =
+      (unsigned long)function;
+
+  // Hacemos push de los parametros 
+  unsigned long *new_stack = stack;
+  --new_stack;
+  *new_stack = (unsigned long)parameter;
+  --new_stack; // Apuntem a retun addr
+  *new_stack = 0;// la return addres sera 0
+
+  ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 2] =
+      (unsigned long)new_stack;
+
+ // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
+  fill->task.k_esp = (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
+
+  // j) en el document:
+  set_quantum(&(fill->task), DEFAULT_QUANTUM_TICKS);
+  update_process_state_rr(&(fill->task), &readyqueue);
+
+  // k) en el document:
+  return fill->task.PID;
+}
+
+
+
 
 void sys_exit() {
   struct task_struct *ct = current();

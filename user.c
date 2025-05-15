@@ -232,6 +232,15 @@ void test_read3() {
   }
 }
 
+int stack[1024];
+
+void test_thread(char* c) {
+  print(c);
+  print("\n");
+  print("test");
+  while(1);
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
@@ -252,6 +261,10 @@ int __attribute__((__section__(".text.main"))) main(void) {
   //test_read3();
   //test_fork2();
 
+  char* t_c = "pipo";
+  create_thread((void*)test_thread,stack,t_c);
+
+  print("test2");
   while (1) {
   }
 }
