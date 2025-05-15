@@ -6,10 +6,12 @@
 #include "include/io.h"
 #include "include/list.h"
 #include "include/mm.h"
+#include "include/mm_address.h"
 #include "include/types.h"
 #include <io.h>
 #include <mm.h>
 #include <sched.h>
+#include "errno.h"
 
 union task_union task[NR_TASKS] __attribute__((__section__(".data.task")));
 
@@ -43,11 +45,40 @@ struct task_struct *list_head_to_task_struct(struct list_head *l) {
   return (struct task_struct *)((int)l & 0xfffff000);
 }
 
+int sub_DIR_ref(struct task_struct *t) {
+  int pos;
+
+  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) / (TOTAL_PAGES*sizeof(page_table_entry));
+  --dir_pages_num_references[pos];
+
+  return dir_pages_num_references[pos];
+}
+
+
+int add_DIR_ref(struct task_struct *t) {
+  int pos;
+
+  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) / (TOTAL_PAGES*sizeof(page_table_entry));
+  ++dir_pages_num_references[pos];
+
+  return 1;
+}
+
+
 int allocate_DIR(struct task_struct *t) {
   int pos;
 
-  pos = ((int)t - (int)task) / sizeof(union task_union);
+  pos = -1;
 
+  for (int i = 0; i < NR_TASKS; ++i) {
+    if (dir_pages_num_references[i] <= 0) {
+      pos = i;
+      break;
+    }
+  }
+  if(pos < 0)
+    return -ENOMEM;
+  ++dir_pages_num_references[pos];
   t->dir_pages_baseAddr = (page_table_entry *)&dir_pages[pos];
 
   return 1;
@@ -70,6 +101,7 @@ void init_idle(void) {
   ct->pending_unblocks = 0;
   ct->current_state = ST_READY;
   INIT_LIST_HEAD(&(ct->fills));
+  INIT_LIST_HEAD(&(ct->waitList));
   set_quantum(ct, 0);
   allocate_DIR(ct);
   ((union task_union *)ct)->stack[KERNEL_STACK_SIZE - 1] =
@@ -88,6 +120,7 @@ void init_task1(void) {
   ct->pending_unblocks = 0;
   update_process_state_rr(ct, NULL);
   INIT_LIST_HEAD(&(ct->fills));
+  INIT_LIST_HEAD(&(ct->waitList));
   set_quantum(ct, DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
   allocate_DIR(ct);
@@ -177,9 +210,7 @@ void update_process_state_rr(struct task_struct *t, struct list_head *dest) {
     list_add_tail(current_list_head, dest);
 }
 
-int needs_sched_rr() { 
-  return (tick_counter <= 0); 
-}
+int needs_sched_rr() { return (tick_counter <= 0); }
 
 void update_sched_data_rr() {
   if (tick_counter > 0)

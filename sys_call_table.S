@@ -14,7 +14,7 @@ ENTRY (sys_call_table)
 	.long sys_set_color//9
 	.long sys_gettime//10
 	.long sys_create_thread//11
-	.long sys_ni_syscall//12
+	.long sys_wait_thread//12
 	.long sys_ni_syscall//13
 	.long sys_ni_syscall//14
 	.long sys_ni_syscall//15

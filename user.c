@@ -1,3 +1,4 @@
+#include "include/libc.h"
 #include <libc.h>
 
 char buff[24];
@@ -234,19 +235,38 @@ void test_read3() {
 
 int stack[1024];
 
-void test_thread(char* c) {
+void test_thread_func(char *c) {
+  print("Thread se activa\n");
   print(c);
-  print("\n");
-  print("test");
-  while(1);
+  print("Pulsa 4 teclas para desbloquar el read: \n");
+  char buf[10];
+  int n = read(buf, 4);
+  if (n < 0) {
+    perror();
+  } else {
+    print("Thread leyo: ");
+    write(1, buf, 4);
+    print("\n");
+  }
+
+  exit_thread();
 }
+
+void test_thread() {
+  print("\n==== Test de thread ====\n");
+  char *t_c = "Recivo Argumento\n";
+  int tid = create_thread((void *)test_thread_func, &stack[1024], t_c);
+  wait_thread(tid);
+  print("\nSe ha desbloqueado el padre\n");
+}
+
 
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  /*
+  
    test_write();
    test_set_color();
    test_gotoxy();
@@ -255,16 +275,14 @@ int __attribute__((__section__(".text.main"))) main(void) {
    test_read();
    test_combinado1();
    test_combinado2();
-  */
+   test_thread();
   
+
   // test_read2();
   // test_read3();
   // test_fork2();
 
-  char* t_c = "pipo";
-  create_thread((void*)test_thread,stack,t_c);
 
-  print("test2");
   while (1) {
   }
 }

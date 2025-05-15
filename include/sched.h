@@ -24,6 +24,8 @@ struct task_struct {
   int pending_unblocks;
   struct list_head fills;
   struct list_head parentAnchor;
+  struct list_head waitList;
+  struct list_head waitAnchor;
   struct task_struct * pare;
   enum state_t current_state;
 };
@@ -64,6 +66,8 @@ void task_switch(union task_union *t);
 struct task_struct *list_head_to_task_struct(struct list_head *l);
 
 int allocate_DIR(struct task_struct *t);
+int add_DIR_ref(struct task_struct *t);
+int sub_DIR_ref(struct task_struct *t);
 
 page_table_entry *get_PT(struct task_struct *t);
 

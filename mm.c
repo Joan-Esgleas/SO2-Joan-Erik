@@ -25,6 +25,7 @@ page_table_entry dir_pages[NR_TASKS][TOTAL_PAGES]
 page_table_entry pagusr_table[NR_TASKS][TOTAL_PAGES]
   __attribute__((__section__(".data.task")));
 
+int dir_pages_num_references[NR_TASKS];
 /* TSS */
 TSS         tss; 
 
@@ -46,7 +47,7 @@ for (i = 0; i< NR_TASKS; i++) {
   dir_pages[i][ENTRY_DIR_PAGES].bits.user = 1;
   dir_pages[i][ENTRY_DIR_PAGES].bits.rw = 1;
   dir_pages[i][ENTRY_DIR_PAGES].bits.present = 1;
-
+  dir_pages_num_references[i] = 0;
 }
 
 }

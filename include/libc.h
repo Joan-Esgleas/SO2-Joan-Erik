@@ -28,6 +28,8 @@ int fork();
 int create_thread(void (*function)(void* arg), void* stack, void* parameter);
 
 void exit();
+void exit_thread();
+int wait_thread(int pid);
 
 void block();
 

@@ -199,6 +199,28 @@ exitRet:
 	popl %ebp
 	ret	
 
+ENTRY(exit_thread)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $1, %eax
+	
+	pushl $exitRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+exit_threadRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %ebp
+	ret	
+
+
+
 ENTRY(block)
 	pushl %ebp
 	mov %esp,%ebp
@@ -259,6 +281,41 @@ unblockSinError:
 
 	popl %ebp
 	ret
+
+ENTRY(wait_thread)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //threadId -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $12, %eax
+	
+	pushl $unblockRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+wait_threadRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge unblockSinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+wait_threadSinError:
+
+	popl %ebp
+	ret
+
+
 
 ENTRY(gotoxy)
 	pushl %ebp

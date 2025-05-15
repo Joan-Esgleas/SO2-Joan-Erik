@@ -133,6 +133,7 @@ int sys_fork() {
   list_add_tail(&fillTs->parentAnchor, &(current()->fills));
 
   INIT_LIST_HEAD(&(fillTs->fills));
+  INIT_LIST_HEAD(&(fillTs->waitList));
 
   fillTs->pending_unblocks = 0;
 
@@ -143,7 +144,8 @@ int sys_fork() {
   ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 18] =
       (unsigned long)&ret_from_fork;
   // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
-  fill->task.k_esp = (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
+  fill->task.k_esp =
+      (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
 
   // j) en el document:
   set_quantum(&(fill->task), DEFAULT_QUANTUM_TICKS);
@@ -153,9 +155,15 @@ int sys_fork() {
   return fill->task.PID;
 }
 
-int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter) {
+int sys_create_thread(void (*function)(void *arg), void *stack,
+                      void *parameter) {
   if (list_empty(&freequeue))
     return -ENOMEM; // Retorna un error de que no hi ha memoria
+
+  else if (!access_ok(VERIFY_READ, function, sizeof(long)))
+    return -EFAULT;
+  else if (!access_ok(VERIFY_WRITE, stack, sizeof(long)))
+    return -EFAULT;
 
   // S'agafa un PCB de la freequeue
   struct list_head *e = list_first(&freequeue);
@@ -164,37 +172,7 @@ int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter)
   list_del(e);
 
   copy_data(current(), fill, sizeof(union task_union));
-  allocate_DIR((struct task_struct *)fill);
-
-  int frames[NUM_PAG_DATA];
-  for (int i = 0; i < NUM_PAG_DATA; i++) {
-    frames[i] = alloc_frame();
-
-    if (frames[i] < 0) {
-      for (int j = 0; j < i; j++) {
-        free_frame(frames[j]);
-      }
-      list_add_tail(&fill->task.list, &freequeue);
-      return -ENOMEM;
-    }
-  }
-
-  page_table_entry *fillTP = get_PT((struct task_struct *)fill);
-  page_table_entry *pareTP = get_PT(current());
-
-  for (int i = 0; i < NUM_PAG_KERNEL; i++)
-    set_ss_pag(fillTP, i, get_frame(pareTP, i));
-
-  for (int i = 0; i < NUM_PAG_CODE; i++) {
-    set_ss_pag(fillTP, PAG_LOG_INIT_CODE + i,
-               get_frame(pareTP, PAG_LOG_INIT_CODE + i));
-  }
-
-  for (int i = 0; i < NUM_PAG_DATA; i++) {
-    set_ss_pag(fillTP, PAG_LOG_INIT_DATA + i,
-               get_frame(pareTP, PAG_LOG_INIT_DATA + i));
-  }
-
+  add_DIR_ref((struct task_struct *)fill);
 
   // set_cr3(get_DIR(current()));
 
@@ -202,6 +180,7 @@ int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter)
   fillTs->pare = current();
   list_add_tail(&fillTs->parentAnchor, &(current()->fills));
   INIT_LIST_HEAD(&(fillTs->fills));
+  INIT_LIST_HEAD(&(fillTs->waitList));
   fillTs->pending_unblocks = 0;
 
   ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19] = (unsigned long)0;
@@ -211,18 +190,19 @@ int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter)
   ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 5] =
       (unsigned long)function;
 
-  // Hacemos push de los parametros 
+  // Hacemos push de los parametros
   unsigned long *new_stack = stack;
   --new_stack;
   *new_stack = (unsigned long)parameter;
-  --new_stack; // Apuntem a retun addr
-  *new_stack = 0;// la return addres sera 0
+  --new_stack;    // Apuntem a retun addr
+  *new_stack = 0; // la return addres sera 0
 
   ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 2] =
       (unsigned long)new_stack;
 
- // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
-  fill->task.k_esp = (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
+  // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
+  fill->task.k_esp =
+      (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
 
   // j) en el document:
   set_quantum(&(fill->task), DEFAULT_QUANTUM_TICKS);
@@ -232,16 +212,15 @@ int sys_create_thread(void (*function)(void* arg), void* stack, void* parameter)
   return fill->task.PID;
 }
 
-
-
-
 void sys_exit() {
   struct task_struct *ct = current();
   page_table_entry *ctTP = get_PT(ct);
 
-  for (int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
-    free_frame(get_frame(ctTP, i));
-    del_ss_pag(ctTP, i);
+  if (sub_DIR_ref(ct) <= 0) {
+    for (int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
+      free_frame(get_frame(ctTP, i));
+      del_ss_pag(ctTP, i);
+    }
   }
 
   ct->PID = -1;
@@ -258,6 +237,11 @@ void sys_exit() {
     list_add_tail(pos, &(idle_task->fills));
   }
 
+  list_for_each_safe(pos, tmp, &(current()->waitList)) {
+    update_process_state_rr(list_head_to_task_struct(pos), &readyqueue);
+    list_del(pos);
+  }
+
   update_process_state_rr(current(), &freequeue);
   sched_next_rr();
 }
@@ -271,6 +255,30 @@ void sys_block() {
     --(ct->pending_unblocks);
 }
 
+int sys_wait_thread(int pid) {
+  // tasks_union
+  int trobat = 0;
+  struct task_struct *bt;
+  for (int i = 0; i < NR_TASKS; i++) {
+    if (task[i].task.PID == pid) {
+      bt = &task[i].task;
+      trobat = 1;
+      break;
+    }
+  }
+  if (!trobat)
+    return -EINVAL;
+
+  struct task_struct *ct = current();
+  if (ct->pending_unblocks <= 0) {
+    list_add_tail(&(ct->waitAnchor), &(bt->waitList));
+    update_process_state_rr(current(), &blocked);
+    sched_next_rr();
+  } else
+    --(ct->pending_unblocks);
+
+  return bt->PID;
+}
 int sys_unblock(int pid) {
   struct list_head *e;
   int ret = -1;
