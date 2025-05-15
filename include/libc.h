@@ -11,6 +11,12 @@
 
 int write(int fd, char *buffer, int size);
 
+int gotoxy(int x, int y);
+
+int set_color(int fg, int bg);
+
+int read(char* b, int maxchars);
+
 void itoa(int a, char *b);
 
 int strlen(char *a);
@@ -20,6 +26,10 @@ int getpid();
 int fork();
 
 void exit();
+
+void block();
+
+int unblock(int pid);
 
 void perror();
 

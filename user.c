@@ -12,7 +12,7 @@ void print(char *s) { write(1, s, strlen(s)); }
 void test_write() {
   print("\n==== Test de write ====\n");
 
-  const char *msg = "Probando write\n";
+  char *msg = "Probando write\n";
   if (write(1, (char *)msg, strlen(msg)) < 0) {
     perror();
   }
@@ -45,6 +45,8 @@ void test_fork() {
     char *men = "Soy el hijo del fork\n";
     print(men);
     exit();
+    print(
+        "\nXXXXXXXXXXXXXXXXXXXXX Esto no se deveria ver XXXXXXXXXXXXXXXXXX\n");
   } else {
     char *men = "Soy el padre del fork\n";
     print(men);
@@ -62,6 +64,8 @@ void test_block_unblock() {
     block();
     print("Hijo: He sido desbloqueado\n");
     exit();
+    print(
+        "\nXXXXXXXXXXXXXXXXXXXXX Esto no se deveria ver XXXXXXXXXXXXXXXXXX\n");
   } else {
     // Padre
     print("Padre: Desbloqueando al Hijo\n");
@@ -148,11 +152,83 @@ void test_combinado2() {
     } else {
       print("Padre leyo: ");
       write(1, buf, 4);
-      write(1, " \nPadre: Desbloqueando al hijo...\n", 33);
+      print(" \nPadre: Desbloqueando al hijo...\n");
       if (unblock(pid) < 0) {
         perror();
       }
     }
+  }
+}
+void test_read2() {
+  print("\n==== Test de read 2 ====\n");
+  int pid = fork();
+  if (pid == 0) {
+    char buf[10];
+    int n = read(buf, 4);
+    if (n < 0) {
+      perror();
+    } else {
+      print("Hijo leyo: ");
+      write(1, buf, 4);
+    }
+    exit();
+  } else {
+    char buf[10];
+    int n = read(buf, 4);
+    if (n < 0) {
+      perror();
+    } else {
+      print("Padre leyo: ");
+      write(1, buf, 4);
+    }
+  }
+}
+
+void test_fork2() {
+  print("\n==== Test de  fork2 ====\n");
+  print("Soy padre\n");
+  int p1 = fork();
+  if (p1 == 0) {
+    print("Soy hijo\n");
+    int p2 = fork();
+    if (p2 == 0) {
+      print("\nSoy nieto\n");
+    } else {
+      print("Hijo:He hecho el fork\n");
+    }
+  } else {
+    print("Padre:He hecho el fork\n");
+  }
+}
+
+void test_read3() {
+  print("\n==== Test de read 3 ====\n");
+  int pid = fork();
+  if (pid == 0) {
+    block();
+    int pid2 = fork();
+    if (pid2 != 0) {
+      char buf[10];
+      int n = read(buf, 4);
+      if (n < 0) {
+        perror();
+      } else {
+        print("Hijo leyo: ");
+        write(1, buf, 4);
+      }
+      exit();
+    }
+
+  } else {
+    char buf[10];
+    int n = read(buf, 4);
+    if (n < 0) {
+      perror();
+    } else {
+      print("Padre leyo: ");
+      write(1, buf, 4);
+    }
+    unblock(pid);
   }
 }
 
@@ -161,16 +237,20 @@ int __attribute__((__section__(".text.main"))) main(void) {
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  test_write();
-  test_set_color();
-  test_gotoxy();
-  test_fork();
-  test_block_unblock();
-  test_read();
-  test_combinado1();
-  test_combinado2();
-
-  print("\n=========FIN TEST==========\n");
+  /*
+   test_write();
+   test_set_color();
+   test_gotoxy();
+   test_fork();
+   test_block_unblock();
+   test_read();
+   test_combinado1();
+   test_combinado2();
+  */
+  
+  //test_read2();
+  //test_read3();
+  //test_fork2();
 
   while (1) {
   }

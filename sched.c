@@ -83,11 +83,10 @@ void init_idle(void) {
 void init_task1(void) {
   struct list_head *e = list_first(&freequeue);
   struct task_struct *ct = list_head_to_task_struct(e);
-  list_del(e);
 
   ct->PID = 1;
   ct->pending_unblocks = 0;
-  ct->current_state = ST_RUN;
+  update_process_state_rr(ct, NULL);
   INIT_LIST_HEAD(&(ct->fills));
   set_quantum(ct, DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
@@ -118,7 +117,7 @@ void init_sched() {
 
   for (int i = 0; i < NR_TASKS; i++) {
     task[i].task.PID = -1;
-    list_add_tail(&(task[i].task.list), &freequeue);
+    update_process_state_rr(&(task[i].task), &freequeue);
   }
 }
 
@@ -130,45 +129,57 @@ void set_quantum(struct task_struct *t, int new_quantum) {
 
 void sched_next_rr() {
   struct list_head *e;
+  struct task_struct *nt;
+
   if (list_empty(&readyqueue)) {
-    update_process_state_rr(idle_task, NULL);
-    tick_counter = 0;
-    task_switch((union task_union *)idle_task);
-    return;
+    nt = idle_task;
   } else {
     e = list_first(&readyqueue);
-    struct task_struct *nt = list_head_to_task_struct(e);
-    update_process_state_rr(nt, NULL);
-    tick_counter = get_quantum(nt);
-    if (current()->PID != nt->PID)
-      task_switch((union task_union *)nt);
+    nt = list_head_to_task_struct(e);
+  }
+
+  if (current()->current_state == ST_RUN)
+    update_process_state_rr(current(), &readyqueue);
+
+  update_process_state_rr(nt, NULL);
+  tick_counter = get_quantum(nt);
+  if (current()->PID != nt->PID) {
+    task_switch((union task_union *)nt);
   }
 }
 
 void update_process_state_rr(struct task_struct *t, struct list_head *dest) {
   struct list_head *current_list_head = &(t->list);
-  if (t->PID == 0)
+  // Check de integridad
+  if (t->PID < 0) {
+    t->current_state = ST_FREE;
+    list_add_tail(current_list_head, &freequeue);
     return;
+  }
+
+  if (t->PID > 0 && t->current_state != ST_RUN)
+    list_del(current_list_head);
+
   if (dest == NULL) {
     t->current_state = ST_RUN;
-    if (t->PID > 0) {
-      list_del(current_list_head);
-    }
     return;
   } else if (dest == &readyqueue) {
-    if (t->current_state != ST_RUN)
-      list_del(current_list_head);
     t->current_state = ST_READY;
   } else if (dest == &blocked) {
     t->current_state = ST_BLOCKED;
-
   } else if (dest == &read_blocked) {
     t->current_state = ST_READBLOCKED;
+  } else if (dest == &freequeue) {
+    t->current_state = ST_FREE;
   }
-  list_add_tail(current_list_head, dest);
+
+  if (t->PID != 0)
+    list_add_tail(current_list_head, dest);
 }
 
-int needs_sched_rr() { return (tick_counter <= 0 && !list_empty(&readyqueue)); }
+int needs_sched_rr() { 
+  return (tick_counter <= 0); 
+}
 
 void update_sched_data_rr() {
   if (tick_counter > 0)

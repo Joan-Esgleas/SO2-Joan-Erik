@@ -91,12 +91,6 @@ void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL) {
   idt[vector].highOffset = highWord((DWord)handler);
 }
 
-void keyboard_handler();
-void clock_handler();
-void syscall_handler_sysenter();
-void system_call_handler();
-void writeMSR(unsigned long msr, unsigned long val);
-void page_fault_handler_2();
 void task_switch(union task_union *new);
 
 void setIdt() {
@@ -140,7 +134,7 @@ void keyboard_routine() {
   if (p_ch < 0 && p_ch > 98)
     return;
   if (!is_break) {
-    char char_print = char_map[p_ch];
+    char char_print = char_map[(int)p_ch];
     if (char_print == '\0')
       char_print = 'C';
     kb_buffer_push(char_print);
@@ -148,6 +142,8 @@ void keyboard_routine() {
     struct list_head *e;
     if (!list_empty(&read_blocked)) {
       e = list_first(&read_blocked);
+      if (current()->current_state == ST_RUN)
+        update_process_state_rr(current(), &readyqueue);
       struct task_struct *nt = list_head_to_task_struct(e);
       task_switch((union task_union *)nt);
     }
@@ -158,12 +154,10 @@ void keyboard_routine() {
 void clock_routine() {
   zeos_show_clock();
   zeos_tick += 10;
+
   update_sched_data_rr();
   if (needs_sched_rr()) {
-    update_process_state_rr(current(), &readyqueue);
     sched_next_rr();
-  }else {
-    tick_counter = get_quantum(current());
   }
 }
 

@@ -142,9 +142,10 @@ int sys_fork() {
   ((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 18] =
       (unsigned long)&ret_from_fork;
   // fem que el kernel esp apunti al 0 del ebp per fer el truquillo
-  fill->task.k_esp = &((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
+  fill->task.k_esp = (unsigned long)&((union task_union *)fill)->stack[KERNEL_STACK_SIZE - 19];
 
   // j) en el document:
+  set_quantum(&(fill->task), DEFAULT_QUANTUM_TICKS);
   update_process_state_rr(&(fill->task), &readyqueue);
 
   // k) en el document:
@@ -166,45 +167,25 @@ void sys_exit() {
 
   list_del(&(current()->parentAnchor));
 
-  struct list_head *e;
-  list_for_each(e, &(current()->fills)) {
-    list_head_to_task_struct(e)->pare = idle_task;
-    list_add_tail(e, &(idle_task->fills));
+  struct list_head *pos;
+  struct list_head *tmp;
+
+  list_for_each_safe(pos, tmp, &(current()->fills)) {
+    list_head_to_task_struct(pos)->pare = idle_task;
+    list_add_tail(pos, &(idle_task->fills));
   }
+
   update_process_state_rr(current(), &freequeue);
   sched_next_rr();
 }
 
 void sys_block() {
   struct task_struct *ct = current();
-  if (ct->pending_unblocks == 0) {
+  if (ct->pending_unblocks <= 0) {
     update_process_state_rr(current(), &blocked);
     sched_next_rr();
   } else
     --(ct->pending_unblocks);
-}
-char bufferAux[WRITE_AUX_BUFF_MAX_SIZE];
-
-int sys_write(int fd, char *buffer, int size) {
-  int checkFd = check_fd(fd, ESCRIPTURA);
-  if (checkFd)
-    return checkFd;
-  else if (buffer == NULL)
-    return -EFAULT;
-  else if (size <= 0)
-    return -EINVAL;
-  else {
-    int ret = 0;
-    while (size > WRITE_AUX_BUFF_MAX_SIZE) {
-      copy_from_user(buffer, bufferAux, WRITE_AUX_BUFF_MAX_SIZE);
-      ret += sys_write_console(bufferAux, WRITE_AUX_BUFF_MAX_SIZE);
-      buffer += WRITE_AUX_BUFF_MAX_SIZE * sizeof(char);
-      size -= WRITE_AUX_BUFF_MAX_SIZE;
-    }
-    copy_from_user(buffer, bufferAux, size);
-    ret += sys_write_console(bufferAux, size);
-    return ret;
-  }
 }
 
 int sys_unblock(int pid) {
@@ -220,8 +201,32 @@ int sys_unblock(int pid) {
       ret = 0;
     }
   }
-  update_process_state_rr(current(), &readyqueue);
   sched_next_rr();
+  return ret;
+}
+
+char bufferAux[WRITE_AUX_BUFF_MAX_SIZE];
+
+int sys_write(int fd, char *buffer, int size) {
+  int checkFd = check_fd(fd, ESCRIPTURA);
+  if (checkFd)
+    return checkFd;
+  else if (buffer == NULL)
+    return -EFAULT;
+  else if (size <= 0)
+    return -EINVAL;
+  else if (!access_ok(VERIFY_WRITE, buffer, size))
+    return -EFAULT;
+
+  int ret = 0;
+  while (size > WRITE_AUX_BUFF_MAX_SIZE) {
+    copy_from_user(buffer, bufferAux, WRITE_AUX_BUFF_MAX_SIZE);
+    ret += sys_write_console(bufferAux, WRITE_AUX_BUFF_MAX_SIZE);
+    buffer += WRITE_AUX_BUFF_MAX_SIZE * sizeof(char);
+    size -= WRITE_AUX_BUFF_MAX_SIZE;
+  }
+  copy_from_user(buffer, bufferAux, size);
+  ret += sys_write_console(bufferAux, size);
   return ret;
 }
 
@@ -232,8 +237,8 @@ int sys_read(char *b, int maxchars) {
     return -EFAULT;
   else if (maxchars < 0)
     return -EINVAL;
-  else if (maxchars >= READ_AUX_BUFF_MAX_SIZE)
-    return -EINVAL;
+  else if (!access_ok(VERIFY_WRITE, b, maxchars))
+    return -EFAULT;
 
   if (kb_buffer_size() < maxchars)
     update_process_state_rr(current(), &read_blocked);
@@ -241,14 +246,28 @@ int sys_read(char *b, int maxchars) {
   while (kb_buffer_size() < maxchars) {
     sched_next_rr();
   }
-  for (int i = 0; i < maxchars; ++i) {
+
+  int size = maxchars;
+  int ret = 0;
+  while (size > READ_AUX_BUFF_MAX_SIZE) {
+    for (int i = 0; i < READ_AUX_BUFF_MAX_SIZE; ++i) {
+      tmpbuff[i] = kb_buffer_pop();
+    }
+    copy_to_user(tmpbuff, b, READ_AUX_BUFF_MAX_SIZE);
+
+    ret += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
+    b += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
+    size -= READ_AUX_BUFF_MAX_SIZE;
+  }
+
+  for (int i = 0; i < size; ++i) {
     tmpbuff[i] = kb_buffer_pop();
   }
-  copy_to_user(tmpbuff, b, maxchars);
-  update_process_state_rr(current(), &readyqueue);
-  sched_next_rr();
+  copy_to_user(tmpbuff, b, size);
+  ret += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
+  update_process_state_rr(current(), NULL);
 
-  return maxchars * sizeof(char);
+  return ret;
 }
 
 int sys_gettime() { return zeos_tick; }

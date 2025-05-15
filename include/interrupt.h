@@ -26,6 +26,15 @@ void kb_buffer_push(char c);
 char kb_buffer_pop();
 unsigned int kb_buffer_size();
 
+void keyboard_handler();
+void clock_handler();
+void syscall_handler_sysenter();
+void system_call_handler();
+void writeMSR(unsigned long msr, unsigned long val);
+void page_fault_handler_2();
+
+
+
 void setInterruptHandler(int vector, void (*handler)(), int maxAccessibleFromPL);
 void setTrapHandler(int vector, void (*handler)(), int maxAccessibleFromPL);
 
