@@ -137,6 +137,47 @@ forkSinError:
 
 	popl %ebp
 	ret
+
+ENTRY(create_thread)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	//Se guardan estos registros porque hacemos fast syscall
+	pushl %edx
+	pushl %ecx
+	pushl %ebx
+	
+	//Se guardan los valores en el orden que se guardan en el SAVE_ALL
+	mov 0x08(%ebp), %edx  //*function -> edx
+	mov 0x0c(%ebp), %ecx  //*stack -> ecx
+	mov 0x10(%ebp), %ebx //*parameter -> ebx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $11, %eax
+	
+	pushl $create_thread_Ret
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+	
+create_thread_Ret:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %ebx
+	popl %ecx
+	popl %edx
+	cmpl $0, %eax
+	jge create_thread_SinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+create_thread_SinError:
+
+	popl %ebp
+	ret
 	
 ENTRY(exit)
 	pushl %ebp

@@ -25,6 +25,8 @@ int getpid();
 
 int fork();
 
+int create_thread(void (*function)(void* arg), void* stack, void* parameter);
+
 void exit();
 
 void block();
