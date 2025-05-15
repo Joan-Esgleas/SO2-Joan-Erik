@@ -215,7 +215,7 @@ int sys_write(int fd, char *buffer, int size) {
     return -EFAULT;
   else if (size <= 0)
     return -EINVAL;
-  else if (!access_ok(VERIFY_WRITE, buffer, size))
+  else if (!access_ok(VERIFY_READ, buffer, size))
     return -EFAULT;
 
   int ret = 0;
@@ -240,8 +240,7 @@ int sys_read(char *b, int maxchars) {
   else if (!access_ok(VERIFY_WRITE, b, maxchars))
     return -EFAULT;
 
-  if (kb_buffer_size() < maxchars)
-    update_process_state_rr(current(), &read_blocked);
+  update_process_state_rr(current(), &read_blocked);
 
   while (kb_buffer_size() < maxchars) {
     sched_next_rr();
