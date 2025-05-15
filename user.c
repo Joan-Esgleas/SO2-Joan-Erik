@@ -248,9 +248,9 @@ int __attribute__((__section__(".text.main"))) main(void) {
    test_combinado2();
   */
   
-  //test_read2();
-  //test_read3();
-  //test_fork2();
+  // test_read2();
+  // test_read3();
+  // test_fork2();
 
   while (1) {
   }

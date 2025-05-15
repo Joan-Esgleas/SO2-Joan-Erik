@@ -137,7 +137,7 @@ void keyboard_routine() {
     char char_print = char_map[(int)p_ch];
     if (char_print == '\0')
       char_print = 'C';
-    if(kb_buffer_size()<KB_BUFFER_SIZE);
+    if (kb_buffer_size() < KB_BUFFER_SIZE)
       kb_buffer_push(char_print);
 
     struct list_head *e;
