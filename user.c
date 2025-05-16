@@ -116,6 +116,12 @@ void test_read() {
     print("\nHas introducido: ");
     write(1, buffer, 5);
     write(1, "\n", 1);
+    print("\n Esto son (bytes): ");
+    char size[9];
+    itoa(n, size);
+    print(size);
+    print("\0");
+    print("\n");
   }
 }
 
@@ -260,28 +266,25 @@ void test_thread() {
   print("\nSe ha desbloqueado el padre\n");
 }
 
-
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
   
-   test_write();
-   test_set_color();
-   test_gotoxy();
-   test_fork();
-   test_block_unblock();
-   test_read();
-   test_combinado1();
-   test_combinado2();
-   test_thread();
-  
+  test_write();
+  test_set_color();
+  test_gotoxy();
+  test_fork();
+  test_block_unblock();
+  test_read();
+  test_combinado1();
+  test_combinado2();
+  test_thread();
 
   // test_read2();
   // test_read3();
   // test_fork2();
-
 
   while (1) {
   }

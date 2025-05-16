@@ -270,12 +270,9 @@ int sys_wait_thread(int pid) {
     return -EINVAL;
 
   struct task_struct *ct = current();
-  if (ct->pending_unblocks <= 0) {
-    list_add_tail(&(ct->waitAnchor), &(bt->waitList));
-    update_process_state_rr(current(), &blocked);
-    sched_next_rr();
-  } else
-    --(ct->pending_unblocks);
+  list_add_tail(&(ct->waitAnchor), &(bt->waitList));
+  update_process_state_rr(current(), &blocked);
+  sched_next_rr();
 
   return bt->PID;
 }
@@ -333,31 +330,24 @@ int sys_read(char *b, int maxchars) {
 
   update_process_state_rr(current(), &read_blocked);
 
+  if (!list_empty(&read_blocked) &&
+      list_head_to_task_struct(list_first(&read_blocked))->PID !=
+          current()->PID) {
+    sched_next_rr();
+  }
+
   while (kb_buffer_size() < maxchars) {
     sched_next_rr();
   }
 
-  int size = maxchars;
-  int ret = 0;
-  while (size > READ_AUX_BUFF_MAX_SIZE) {
-    for (int i = 0; i < READ_AUX_BUFF_MAX_SIZE; ++i) {
-      tmpbuff[i] = kb_buffer_pop();
-    }
-    copy_to_user(tmpbuff, b, READ_AUX_BUFF_MAX_SIZE);
-
-    ret += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
-    b += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
-    size -= READ_AUX_BUFF_MAX_SIZE;
-  }
-
-  for (int i = 0; i < size; ++i) {
+  int i;
+  for (i = 0; i < maxchars; ++i)
     tmpbuff[i] = kb_buffer_pop();
-  }
-  copy_to_user(tmpbuff, b, size);
-  ret += READ_AUX_BUFF_MAX_SIZE * sizeof(char);
+
+  copy_to_user(tmpbuff, b, i);
   update_process_state_rr(current(), NULL);
 
-  return ret;
+  return i * sizeof(char);
 }
 
 int sys_gettime() { return zeos_tick; }

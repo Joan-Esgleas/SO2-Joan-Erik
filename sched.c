@@ -2,6 +2,7 @@
  * sched.c - initializes struct for task 0 anda task 1
  */
 
+#include "errno.h"
 #include "include/interrupt.h"
 #include "include/io.h"
 #include "include/list.h"
@@ -11,7 +12,6 @@
 #include <io.h>
 #include <mm.h>
 #include <sched.h>
-#include "errno.h"
 
 union task_union task[NR_TASKS] __attribute__((__section__(".data.task")));
 
@@ -48,22 +48,22 @@ struct task_struct *list_head_to_task_struct(struct list_head *l) {
 int sub_DIR_ref(struct task_struct *t) {
   int pos;
 
-  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) / (TOTAL_PAGES*sizeof(page_table_entry));
+  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) /
+        (TOTAL_PAGES * sizeof(page_table_entry));
   --dir_pages_num_references[pos];
 
   return dir_pages_num_references[pos];
 }
 
-
 int add_DIR_ref(struct task_struct *t) {
   int pos;
 
-  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) / (TOTAL_PAGES*sizeof(page_table_entry));
+  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) /
+        (TOTAL_PAGES * sizeof(page_table_entry));
   ++dir_pages_num_references[pos];
 
   return 1;
 }
-
 
 int allocate_DIR(struct task_struct *t) {
   int pos;
@@ -76,7 +76,7 @@ int allocate_DIR(struct task_struct *t) {
       break;
     }
   }
-  if(pos < 0)
+  if (pos < 0)
     return -ENOMEM;
   ++dir_pages_num_references[pos];
   t->dir_pages_baseAddr = (page_table_entry *)&dir_pages[pos];
@@ -137,7 +137,8 @@ void init_task1(void) {
 void inner_task_switch(union task_union *new) {
   tss.esp0 = (unsigned long)&(new->stack[KERNEL_STACK_SIZE]);
   writeMSR(0x175, (unsigned long)&(new->stack[KERNEL_STACK_SIZE]));
-  set_cr3(get_DIR(&new->task));
+  if (new->task.dir_pages_baseAddr != current()->dir_pages_baseAddr)
+    set_cr3(get_DIR(&new->task));
 
   cambio_stack(&current()->k_esp, new->task.k_esp);
 }
