@@ -30,6 +30,8 @@ extern Byte background;
 
 int pidGlobal = 1000;
 
+int maxIDsemaphores = 0;
+
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
 
@@ -367,4 +369,68 @@ int sys_set_color(int fg, int bg) {
   foreground = (Byte)fg;
   background = (Byte)bg;
   return 0;
+}
+
+int sys_semCreate(int initial_value) {
+  int i = 0;
+  while(i < (maxIDsemaphores + 1)) {
+  	if(semaphores[i].free) {
+  		semaphores[i].free = 0;
+  		semaphores[i].value = initial_value;
+  		semaphores[i].creatorPID = sys_getpid();
+  		INIT_LIST_HEAD(&(semaphores[i].blockedThreads));
+  		if(maxIDsemaphores < i) maxIDsemaphores = i;
+  		return i;
+  	}
+  	++i;
+  }
+  return -1; 
+}
+
+int sys_semWait(int semid) {
+  if(semaphores[semid].free) return -1;
+  
+  --(semaphores[semid].value);
+  
+  if(semaphores[semid].value < 0) {
+  	list_add_tail(&(current()->semList), &(semaphores[semid].blockedThreads));
+  	update_process_state_rr(current(), &blocked);
+  	sched_next_rr();
+  }
+  
+  return semaphores[semid].value;
+}
+
+int sys_semSignal(int semid) {
+  if(semaphores[semid].free) return -1;
+  
+  ++(semaphores[semid].value);
+  
+  if(semaphores[semid].value <= 0) {
+  	struct list_head *e = list_first(&(semaphores[semid].blockedThreads));
+	struct task_struct *firstBlocked = list_head_to_task_struct(e);
+	int pid = firstBlocked->PID;
+	list_del(e);
+	sys_unblock(pid);
+  }
+  
+  return semaphores[semid].value;
+}
+
+int sys_semDestroy(int semid) {
+  if(semaphores[semid].free) return -1;
+  if(current()->PID != semaphores[semid].creatorPID) return -1;
+		
+  //Desbloqueamos los threads que estuvieran bloqueados por el semaforo
+  while (!(list_empty(&(semaphores[semid].blockedThreads)))) {
+	struct list_head *e = list_first(&(semaphores[semid].blockedThreads));
+	struct task_struct *firstBlocked = list_head_to_task_struct(e);
+	int pid = firstBlocked->PID;
+	list_del(e);
+	sys_unblock(pid);
+  }
+  
+  semaphores[semid].free = 1;
+  
+  return semid;
 }
