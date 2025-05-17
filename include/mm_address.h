@@ -11,16 +11,18 @@
 #define PAG_LOG_INIT_DATA (L_USER_START>>12)
 #define NUM_PAG_DATA 20
 #define PAGE_SIZE 0x1000
+#define PAG_LOG_INIT_HEAP (PAG_LOG_INIT_CODE + NUM_PAG_CODE)
 
 /* Memory distribution */
 /***********************/
 
 
-#define KERNEL_START     0x10000
+#define KERNEL_START        0x010000
 #define L_USER_START        0x100000
 #define USER_ESP	L_USER_START+(NUM_PAG_DATA)*0x1000-16
 
 #define USER_FIRST_PAGE	(L_USER_START>>12)
+
 
 #define PH_PAGE(x) (x>>12)
 

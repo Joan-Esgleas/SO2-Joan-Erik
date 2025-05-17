@@ -31,6 +31,8 @@ void exit();
 void exit_thread();
 int wait_thread(int pid);
 
+char* dyn_mem(int num_pages);
+
 void block();
 
 int unblock(int pid);

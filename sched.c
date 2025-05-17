@@ -100,6 +100,7 @@ void init_idle(void) {
   ct->PID = 0;
   ct->pending_unblocks = 0;
   ct->current_state = ST_READY;
+  ct->heap_pag_size = 0;
   INIT_LIST_HEAD(&(ct->fills));
   INIT_LIST_HEAD(&(ct->waitList));
   set_quantum(ct, 0);
@@ -118,6 +119,7 @@ void init_task1(void) {
 
   ct->PID = 1;
   ct->pending_unblocks = 0;
+  ct->heap_pag_size = 0;
   update_process_state_rr(ct, NULL);
   INIT_LIST_HEAD(&(ct->fills));
   INIT_LIST_HEAD(&(ct->waitList));

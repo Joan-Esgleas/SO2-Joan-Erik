@@ -4,7 +4,8 @@
 #include "include/interrupt.h"
 #include "include/io.h"
 #include "include/list.h"
-#include <devices.h>
+#include "include/mm.h"
+#include "include/mm_address.h"
 
 #include <utils.h>
 
@@ -64,14 +65,11 @@ int sys_fork() {
   // Obtenim un nou directori pel fill
   allocate_DIR((struct task_struct *)fill);
 
-  // d) en el document:
-  // Obtenim les pagines pel nostre fill
-  int frames[NUM_PAG_DATA];
-  for (int i = 0; i < NUM_PAG_DATA; i++) {
+  int frames[NUM_PAG_DATA + current()->heap_pag_size];
+  for (int i = 0; i < NUM_PAG_DATA + current()->heap_pag_size; i++) {
     frames[i] = alloc_frame();
 
     if (frames[i] < 0) {
-      // Si no hi ha mes espai, s'allibera el espai inutil que haviem reservat
       for (int j = 0; j < i; j++) {
         free_frame(frames[j]);
       }
@@ -80,13 +78,9 @@ int sys_fork() {
     }
   }
 
-  // e) en el document:
-  // Obtenim els punters de les TPs del pare i del fill
   page_table_entry *fillTP = get_PT((struct task_struct *)fill);
   page_table_entry *pareTP = get_PT(current());
 
-  // e) -> i)
-  // Fer que pagines de kernel i codi apuntin a les del pare
   for (int i = 0; i < NUM_PAG_KERNEL; i++)
     set_ss_pag(fillTP, i, get_frame(pareTP, i));
 
@@ -95,29 +89,24 @@ int sys_fork() {
                get_frame(pareTP, PAG_LOG_INIT_CODE + i));
   }
 
-  // e) -> ii)
-  // Vinculem les pagines logiques amb els frames abans agafats per data+stack
   for (int i = 0; i < NUM_PAG_DATA; i++)
     set_ss_pag(fillTP, PAG_LOG_INIT_DATA + i, frames[i]);
 
-  // RECORDATORI PER AQUEST APARTAT, S'HA IMPLEMENTAT D'UNA FORMA QUE ES MAPEJEN
-  // MOLTES PAGINES LOGIQUES AMB MOLTES FISIQUES, SI FUNCIONA, DESPRES PROVAR DE
-  // FER-HO AMB NOMES LA PAGINA LOGICA QUE VAGI DIRECTAMENT DESPRES DE
-  // NUM_PAG_KERNEL + NUM_PAG_CODE + NUM_PAG_DATA I ANAR FENT set_ss_pag(pareTP,
-  // LA PAGINA, get_frame(fillTP, i)) I DESPRES del_ss_pag(pareTP, LA PAGINA)
+  for (int i = NUM_PAG_DATA; i < current()->heap_pag_size; i++)
+    set_ss_pag(fillTP, PAG_LOG_INIT_HEAP + i, frames[i]);
 
-  // f) en el document:
-  // Creem una variable que ens fara accedir a les pagines lliures del pare
-  int offset = NUM_PAG_DATA + NUM_PAG_CODE;
+  int offset = NUM_PAG_DATA + NUM_PAG_CODE + current()->heap_pag_size;
 
   for (int i = PAG_LOG_INIT_DATA; i < (PAG_LOG_INIT_DATA + NUM_PAG_DATA); i++) {
-    // Ara creem una pagina de copia que apunti al mateix frame que la DATA del
-    // fill
     set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
-    // Ara copiem tot en aquesta pagina de copia vinculada al frame del DATA del
-    // fill perque aquest tingui la info
     copy_data((void *)(i << 12), (void *)((i + offset) << 12), PAGE_SIZE);
-    // Com ja tenim la info copiada, esborrem la pagina creada
+    del_ss_pag(pareTP, i + offset);
+  }
+
+  for (int i = PAG_LOG_INIT_HEAP;
+       i < (PAG_LOG_INIT_HEAP + current()->heap_pag_size); i++) {
+    set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
+    copy_data((void *)(i << 12), (void *)((i + offset) << 12), PAGE_SIZE);
     del_ss_pag(pareTP, i + offset);
   }
 
@@ -221,6 +210,11 @@ void sys_exit() {
       free_frame(get_frame(ctTP, i));
       del_ss_pag(ctTP, i);
     }
+    for (int i = PAG_LOG_INIT_HEAP;
+         i < PAG_LOG_INIT_HEAP + current()->heap_pag_size; i++) {
+      free_frame(get_frame(ctTP, i));
+      del_ss_pag(ctTP, i);
+    }
   }
 
   ct->PID = -1;
@@ -276,6 +270,7 @@ int sys_wait_thread(int pid) {
 
   return bt->PID;
 }
+
 int sys_unblock(int pid) {
   struct list_head *e;
   int ret = -1;
@@ -367,4 +362,43 @@ int sys_set_color(int fg, int bg) {
   foreground = (Byte)fg;
   background = (Byte)bg;
   return 0;
+}
+
+char *sys_dyn_mem(int num_pags) {
+
+  if (num_pags >= 0) {
+    int frames[num_pags];
+    for (int i = 0; i < num_pags; i++) {
+      frames[i] = alloc_frame();
+
+      if (frames[i] < 0) {
+        // Si no hi ha mes espai, s'allibera el espai inutil que haviem reservat
+        for (int j = 0; j < i; j++) {
+          free_frame(frames[j]);
+        }
+        return (char *)(-ENOMEM);
+      } else {
+        set_ss_pag(get_PT(current()),
+                   PAG_LOG_INIT_HEAP + current()->heap_pag_size + i, frames[i]);
+      }
+    }
+
+    current()->heap_pag_size += num_pags;
+    return ((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
+
+  } else {
+    num_pags = num_pags * -1;
+    if (current()->heap_pag_size < num_pags)
+      return (char *)-EINVAL;
+
+    for (int i = 0; i < num_pags; ++i) {
+      free_frame(get_frame(get_PT(current()),
+                           PAG_LOG_INIT_HEAP + current()->heap_pag_size - i));
+      del_ss_pag(get_PT(current()),
+                 PAG_LOG_INIT_HEAP + current()->heap_pag_size - i);
+    }
+    set_cr3(get_DIR(current()));
+    current()->heap_pag_size -= num_pags;
+    return ((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
+  }
 }

@@ -315,6 +315,40 @@ wait_threadSinError:
 	popl %ebp
 	ret
 
+ENTRY(dyn_mem)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //num_pags -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $13, %eax
+	
+	pushl $unblockRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+dyn_memRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge unblockSinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+dyn_memSinError:
+
+	popl %ebp
+	ret
+
+
 
 
 ENTRY(gotoxy)

@@ -271,7 +271,7 @@ int __attribute__((__section__(".text.main"))) main(void) {
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  
+  /*
   test_write();
   test_set_color();
   test_gotoxy();
@@ -281,10 +281,33 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_combinado1();
   test_combinado2();
   test_thread();
-
+  */
   // test_read2();
   // test_read3();
   // test_fork2();
+
+  // char test[(0x1000*16)];
+
+  char *mem1 = dyn_mem(4);
+  print("\n");
+  char size[9];
+  itoa((unsigned long)mem1, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  char *men_test = &mem1[-20];
+
+  men_test = "pipo \n";
+
+  print(men_test);
+
+  int pid = fork();
+
+  if (pid == 0) {
+    print(men_test);
+    exit();
+  }
 
   while (1) {
   }
