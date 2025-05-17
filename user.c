@@ -266,15 +266,18 @@ void test_thread() {
   print("\nSe ha desbloqueado el padre\n");
 }
 
+int semid;
+
 void test_sem_func(char *c) {
-  semWait(0);
+  semWait(semid);
   print("Acabo de entrar en la funcion de prueba de semaforo\n");
   print(c);
+  exit_thread();
 }
 
 void test_sem() {
   print("\n==== Test de semaforo ====\n");
-  int semid = semCreate(1);
+  semid = semCreate(1);
   char *t_c = "Muestra de que recivo argumento al crear el thread\n";
   int tid = create_thread((void *)test_sem_func, &stack[1024], t_c);
   int tid2 = create_thread((void *)test_sem_func, &stack[1024], t_c);
