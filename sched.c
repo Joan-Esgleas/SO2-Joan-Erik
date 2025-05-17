@@ -25,6 +25,7 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
 struct list_head read_blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
+struct list_head semaphores;
 struct task_struct *idle_task;
 struct task_struct *task1;
 int tick_counter;
@@ -39,6 +40,10 @@ page_table_entry *get_PT(struct task_struct *t) {
   return (page_table_entry
               *)(((unsigned int)(t->dir_pages_baseAddr->bits.pbase_addr))
                  << 12);
+}
+
+struct semaphore *list_head_to_semaphore(struct list_head *l) {
+  return list_entry(l, struct semaphore, list);
 }
 
 struct task_struct *list_head_to_task_struct(struct list_head *l) {
@@ -148,6 +153,7 @@ void init_sched() {
   INIT_LIST_HEAD(&read_blocked);
   INIT_LIST_HEAD(&freequeue);
   INIT_LIST_HEAD(&readyqueue);
+  INIT_LIST_HEAD(&semaphores);
 
   for (int i = 0; i < NR_TASKS; i++) {
     task[i].task.PID = -1;

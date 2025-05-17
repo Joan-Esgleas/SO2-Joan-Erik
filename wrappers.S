@@ -390,3 +390,135 @@ setColorSinError:
 
 	popl %ebp
 	ret
+	
+ENTRY(semCreate)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //pid -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $14, %eax
+	
+	pushl $semCreateRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+semCreateRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge semCreateSinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+semCreateSinError:
+
+	popl %ebp
+	ret
+	
+ENTRY(semWait)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //pid -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $15, %eax
+	
+	pushl $semWaitRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+semWaitRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge semWaitSinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+semWaitSinError:
+
+	popl %ebp
+	ret
+	
+ENTRY(semSignal)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //pid -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $16, %eax
+	
+	pushl $semSignalRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+semSignalRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge semSignalSinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+semSignalSinError:
+
+	popl %ebp
+	ret
+	
+ENTRY(semDestroy)
+	pushl %ebp
+	mov %esp,%ebp
+	
+	pushl %edx
+	
+	mov 0x08(%ebp), %edx //pid -> edx
+	
+	//Ponemos el numero de la syscall en el eax
+	movl $17, %eax
+	
+	pushl $semDestroyRet
+	pushl %ebp
+	mov %esp,%ebp
+	
+	sysenter
+
+semDestroyRet:
+	
+	popl %ebp
+	addl $4, %esp
+	popl %edx
+	cmpl $0, %eax
+	jge semDestroySinError
+	negl %eax
+	movl %eax, errno
+	movl $-1, %eax
+	
+semDestroySinError:
+
+	popl %ebp
+	ret

@@ -29,6 +29,7 @@ extern Byte foreground;
 extern Byte background;
 
 int pidGlobal = 1000;
+int semIDs = 0;
 
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
@@ -367,4 +368,90 @@ int sys_set_color(int fg, int bg) {
   foreground = (Byte)fg;
   background = (Byte)bg;
   return 0;
+}
+
+int sys_semCreate(int initial_value) {
+  struct semaphore s;
+  s->value = initial_value;
+  s->id = semIDs;
+  ++semIDs;
+  s->creatorPID = sys_getpid();
+  INIT_LIST_HEAD(&s->blockedThreads);
+  list_add_tail(&s->list, &semaphore);
+  return (semIDs - 1); 
+}
+
+int sys_semWait(int semid) {
+  int trobat = 0;
+  
+  if(list_empty(&semaphores)) return -1;
+  struct list_head *pos;
+  struct list_head *tmp;
+
+  list_for_each_safe(pos, tmp, &semaphores) {
+    	struct semaphore *s = list_head_to_semaphore(pos);
+		
+	if(s->id == semid) {
+		trobat = 1;
+		--(s->value);
+		if(s->value < 0) {
+			list_add_tail(&(current()->semList), &(s->blockedThreads));
+			update_process_state_rr(current(), &blocked);
+  			sched_next_rr();
+		}
+	}
+  }
+ 	
+  if(!trobat) return -1;
+  else return semid;
+}
+
+int sys_semSignal(int semid) {
+  int trobat = 0;
+  
+  if(list_empty(&semaphores)) return -1;
+  
+  struct list_head *pos;
+  struct list_head *tmp;
+
+  list_for_each_safe(pos, tmp, &semaphores) {
+    	struct semaphore *s = list_head_to_semaphore(pos);
+		
+	if(s->id == semid) {
+		trobat = 1;
+		++(s->value);
+		if(s->value <= 0) {
+			struct list_head *e = list_first(&(s->blockedThreads));
+			struct task_struct *firstBlocked = list_head_to_task_struct(e);
+			int pid = firstBlocked->PID;
+			list_del(e);
+			sys_unblock(pid);
+		}
+	}
+  }
+ 	
+  if(!trobat) return -1;
+  else return semid;
+}
+
+int sys_semDestroy(int semid) {
+  int trobat = 0;
+  
+  if(list_empty(&semaphores)) return -1;
+  
+  struct list_head *pos;
+  struct list_head *tmp;
+
+  list_for_each_safe(pos, tmp, &semaphores) {
+    	struct semaphore *s = list_head_to_semaphore(pos);
+		
+	if(s->id == semid) {
+		if(current()->PID != s->creatorPID) return -1;
+		//FALTA GESTIONAR LA LISTA DE THREADS BLOQUEADOS
+		list_del(s->list);
+	}
+  }
+ 	
+  if(!trobat) return -1;
+  else return semid; 
 }

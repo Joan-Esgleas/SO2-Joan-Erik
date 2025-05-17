@@ -26,8 +26,17 @@ struct task_struct {
   struct list_head parentAnchor;
   struct list_head waitList;
   struct list_head waitAnchor;
+  struct list_head semList;
   struct task_struct * pare;
   enum state_t current_state;
+};
+
+struct semaphore {
+  int value;
+  int id;
+  int creatorPID;
+  struct list_head list;
+  struct list_head blockedThreads;
 };
 
 union task_union {
@@ -41,6 +50,7 @@ extern struct list_head blocked;
 extern struct list_head read_blocked;
 extern struct list_head freequeue;
 extern struct list_head readyqueue;
+extern struct list_head semaphores;
 extern struct task_struct *idle_task;
 extern struct task_struct *task1;
 
