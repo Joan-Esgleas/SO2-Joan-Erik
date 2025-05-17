@@ -46,6 +46,8 @@ union task_union {
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
 
+extern struct semaphore * punteroSem;
+
 extern struct list_head blocked;
 extern struct list_head read_blocked;
 extern struct list_head freequeue;

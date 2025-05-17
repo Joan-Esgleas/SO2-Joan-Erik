@@ -28,6 +28,7 @@ struct list_head readyqueue;
 struct list_head semaphores;
 struct task_struct *idle_task;
 struct task_struct *task1;
+struct semaphore * punteroSem;
 int tick_counter;
 
 /* get_DIR - Returns the Page Directory address for task 't' */

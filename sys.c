@@ -371,13 +371,14 @@ int sys_set_color(int fg, int bg) {
 }
 
 int sys_semCreate(int initial_value) {
-  struct semaphore s;
+  struct semaphore *s = punteroSem;
   s->value = initial_value;
   s->id = semIDs;
   ++semIDs;
   s->creatorPID = sys_getpid();
   INIT_LIST_HEAD(&s->blockedThreads);
-  list_add_tail(&s->list, &semaphore);
+  list_add_tail(&s->list, &semaphores);
+  punteroSem += sizeof(struct semaphore);
   return (semIDs - 1); 
 }
 
@@ -447,8 +448,16 @@ int sys_semDestroy(int semid) {
 		
 	if(s->id == semid) {
 		if(current()->PID != s->creatorPID) return -1;
-		//FALTA GESTIONAR LA LISTA DE THREADS BLOQUEADOS
-		list_del(s->list);
+		//Desbloqueamos los threads que estuvieran bloqueados por el semaforo
+ 		while (!(list_empty(&(s->blockedThreads)))) {
+			struct list_head *e = list_first(&(s->blockedThreads));
+			struct task_struct *firstBlocked = list_head_to_task_struct(e);
+			int pid = firstBlocked->PID;
+			list_del(e);
+			sys_unblock(pid);
+		}
+		
+		list_del(&(s->list));
 	}
   }
  	

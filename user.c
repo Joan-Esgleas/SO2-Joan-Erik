@@ -266,12 +266,31 @@ void test_thread() {
   print("\nSe ha desbloqueado el padre\n");
 }
 
+void test_sem_func(char *c) {
+  semWait(0);
+  print("Acabo de entrar en la funcion de prueba de semaforo\n");
+  print(c);
+}
+
+void test_sem() {
+  print("\n==== Test de semaforo ====\n");
+  int semid = semCreate(1);
+  char *t_c = "Muestra de que recivo argumento al crear el thread\n";
+  int tid = create_thread((void *)test_sem_func, &stack[1024], t_c);
+  int tid2 = create_thread((void *)test_sem_func, &stack[1024], t_c);
+  print("\nAhora envio signal al semaforo para volver a ejecutar el test\n"); 
+  semSignal(semid);
+  semDestroy(semid);
+  print("\nAhora deberia dar error\n");
+  int tid3 = create_thread((void *)test_sem_func, &stack[1024], t_c);
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  
+  /*
   test_write();
   test_set_color();
   test_gotoxy();
@@ -280,7 +299,8 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_read();
   test_combinado1();
   test_combinado2();
-  test_thread();
+  test_thread();*/
+  test_sem();
 
   // test_read2();
   // test_read3();
