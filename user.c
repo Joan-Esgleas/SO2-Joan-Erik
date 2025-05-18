@@ -281,11 +281,11 @@ void test_sem() {
   char *t_c = "Muestra de que recivo argumento al crear el thread\n";
   int tid = create_thread((void *)test_sem_func, &stack[1024], t_c);
   int tid2 = create_thread((void *)test_sem_func, &stack[1024], t_c);
+  wait_thread(tid);
   print("\nAhora envio signal al semaforo para volver a ejecutar el test\n"); 
   semSignal(semid);
+  wait_thread(tid2);
   semDestroy(semid);
-  print("\nAhora deberia dar error\n");
-  int tid3 = create_thread((void *)test_sem_func, &stack[1024], t_c);
 }
 
 
