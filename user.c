@@ -268,24 +268,37 @@ void test_thread() {
 
 int semid;
 
-void test_sem_func(char *c) {
+void test_sem_func() {
+  print("Thread Hijo: me bloqueo con semaforo\n");
   semWait(semid);
-  print("Acabo de entrar en la funcion de prueba de semaforo\n");
-  print(c);
+  print("Thread Hijo: me he desbloqueado con semaforo\n");
   exit_thread();
 }
 
 void test_sem() {
   print("\n==== Test de semaforo ====\n");
-  semid = semCreate(1);
-  char *t_c = "Muestra de que recivo argumento al crear el thread\n";
-  int tid = create_thread((void *)test_sem_func, &stack[1024], t_c);
-  int tid2 = create_thread((void *)test_sem_func, &stack[1024], t_c);
-  wait_thread(tid);
-  print("\nAhora envio signal al semaforo para volver a ejecutar el test\n"); 
+  semid = semCreate(0);
+  int tid = create_thread((void *)test_sem_func, &stack[1024], 0);
+  print("Thread Padre: pulsa una tecla para desbloquear al hijo\n");
+  char buf[1];
+  read(buf, 1);
   semSignal(semid);
-  wait_thread(tid2);
+  wait_thread(tid);
+  print("Thread padre: Mi hijo se ha desbloqueado y ha terminado.\n");
   semDestroy(semid);
+  print("Semaforo borrado\n");
+}
+
+void test_sem2() {
+  print("\n==== Test de semaforo 2====\n");
+  semid = semCreate(0);
+  int tid = create_thread((void *)test_sem_func, &stack[1024], 0);
+  print("Thread Padre: pulsa una tecla para desbloquear al hijo\n");
+  char buf[1];
+  read(buf, 1);
+  semDestroy(semid);
+  wait_thread(tid);
+  print("Thread padre: Mi hijo se ha desbloqueado al borrar el semaforo.\n");
 }
 
 
@@ -294,8 +307,7 @@ int __attribute__((__section__(".text.main"))) main(void) {
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  
-  /*test_write();
+  test_write();
   test_set_color();
   test_gotoxy();
   test_fork();
@@ -303,8 +315,9 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_read();
   test_combinado1();
   test_combinado2();
-  test_thread();*/
+  test_thread();
   test_sem();
+  test_sem2();
 
   // test_read2();
   // test_read3();

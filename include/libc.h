@@ -35,6 +35,11 @@ void block();
 
 int unblock(int pid);
 
+int semCreate(int initial_value);
+int semWait(int semid);
+int semSignal(int semid);
+int semDestroy(int semid);
+
 void perror();
 
 #endif  /* __LIBC_H__ */
