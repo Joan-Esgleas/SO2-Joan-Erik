@@ -219,6 +219,7 @@ void sys_exit() {
 
   ct->PID = -1;
   ct->dir_pages_baseAddr = NULL;
+  ct->heap_pag_size = 0;
   ct->pare = NULL;
 
   list_del(&(current()->parentAnchor));
@@ -398,7 +399,13 @@ char *sys_dyn_mem(int num_pags) {
                  PAG_LOG_INIT_HEAP + current()->heap_pag_size - i);
     }
     set_cr3(get_DIR(current()));
-    current()->heap_pag_size -= num_pags;
+    for (int i = 0; i < NR_TASKS; ++i) {
+      if (task[i].task.PID > 0 &&
+          task[i].task.dir_pages_baseAddr == current()->dir_pages_baseAddr) {
+        task[i].task.heap_pag_size -= num_pags;
+      }
+    }
+
     return ((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
   }
 }

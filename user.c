@@ -266,12 +266,48 @@ void test_thread() {
   print("\nSe ha desbloqueado el padre\n");
 }
 
+void test_dyn_mem() {
+  print("\n==== Test de dyn_mem ====\n");
+  char *mem1 = dyn_mem(4);
+  char size[9];
+  itoa((unsigned long)mem1, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  char *men_test = &mem1[-20];
+
+  men_test = "Este mensaje esta en heap \n";
+
+  print(men_test);
+
+  char *mem2 = dyn_mem(4);
+  itoa((unsigned long)mem2, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  char *mem3 = dyn_mem(-4);
+  itoa((unsigned long)mem3, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  int pid = fork();
+
+  if (pid == 0) {
+    print(men_test);
+    dyn_mem(-4);
+    exit();
+  }
+  dyn_mem(-4);
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
-  /*
   test_write();
   test_set_color();
   test_gotoxy();
@@ -281,34 +317,13 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_combinado1();
   test_combinado2();
   test_thread();
-  */
+  test_dyn_mem();
+  
   // test_read2();
   // test_read3();
   // test_fork2();
-
-  // char test[(0x1000*16)];
-
-  char *mem1 = dyn_mem(4);
-  print("\n");
-  char size[9];
-  itoa((unsigned long)mem1, size);
-  print(size);
-  print("\0");
-  print("\n");
-
-  char *men_test = &mem1[-20];
-
-  men_test = "pipo \n";
-
-  print(men_test);
-
-  int pid = fork();
-
-  if (pid == 0) {
-    print(men_test);
-    exit();
-  }
-
+  
+  
   while (1) {
   }
 }
