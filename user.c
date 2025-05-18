@@ -303,6 +303,41 @@ void test_dyn_mem() {
   dyn_mem(-4);
 }
 
+int semid;
+
+void test_sem_func() {
+  print("Thread Hijo: me bloqueo con semaforo\n");
+  semWait(semid);
+  print("Thread Hijo: me he desbloqueado con semaforo\n");
+  exit_thread();
+}
+
+void test_sem() {
+  print("\n==== Test de semaforo ====\n");
+  semid = semCreate(0);
+  int tid = create_thread((void *)test_sem_func, &stack[1024], 0);
+  print("Thread Padre: pulsa una tecla para desbloquear al hijo\n");
+  char buf[1];
+  read(buf, 1);
+  semSignal(semid);
+  wait_thread(tid);
+  print("Thread padre: Mi hijo se ha desbloqueado y ha terminado.\n");
+  semDestroy(semid);
+  print("Semaforo borrado\n");
+}
+
+void test_sem2() {
+  print("\n==== Test de semaforo 2====\n");
+  semid = semCreate(0);
+  int tid = create_thread((void *)test_sem_func, &stack[1024], 0);
+  print("Thread Padre: pulsa una tecla para desbloquear al hijo\n");
+  char buf[1];
+  read(buf, 1);
+  semDestroy(semid);
+  wait_thread(tid);
+  print("Thread padre: Mi hijo se ha desbloqueado al borrar el semaforo.\n");
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
@@ -318,6 +353,8 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_combinado2();
   test_thread();
   test_dyn_mem();
+  test_sem();
+  test_sem2();
   
   // test_read2();
   // test_read3();

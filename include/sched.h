@@ -10,6 +10,7 @@
 #include <types.h>
 
 #define NR_TASKS 10
+#define NUM_SEMS 100
 #define KERNEL_STACK_SIZE 1024
 #define DEFAULT_QUANTUM_TICKS 10
 
@@ -27,8 +28,17 @@ struct task_struct {
   struct list_head parentAnchor;
   struct list_head waitList;
   struct list_head waitAnchor;
+  struct list_head semList;
   struct task_struct * pare;
   enum state_t current_state;
+};
+
+struct semaphore {
+  int id;
+  int value;
+  int free;
+  int creatorPID;
+  struct list_head blockedThreads;
 };
 
 union task_union {
@@ -37,6 +47,8 @@ union task_union {
 };
 
 extern union task_union task[NR_TASKS]; /* Vector de tasques */
+
+extern struct semaphore semaphores[NUM_SEMS];
 
 extern struct list_head blocked;
 extern struct list_head read_blocked;

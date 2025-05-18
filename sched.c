@@ -21,7 +21,7 @@ struct task_struct *list_head_to_task_struct(struct list_head *l)
   return list_entry( l, struct task_struct, list);
 }
 #endif
-
+struct semaphore semaphores[NUM_SEMS];
 struct list_head read_blocked;
 struct list_head freequeue;
 struct list_head readyqueue;
@@ -150,6 +150,7 @@ void init_sched() {
   INIT_LIST_HEAD(&read_blocked);
   INIT_LIST_HEAD(&freequeue);
   INIT_LIST_HEAD(&readyqueue);
+  for(int i = 0; i < NUM_SEMS; i++) semaphores[i].free = 1;
 
   for (int i = 0; i < NR_TASKS; i++) {
     task[i].task.PID = -1;
