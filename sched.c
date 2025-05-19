@@ -84,6 +84,25 @@ int allocate_DIR(struct task_struct *t) {
   return 1;
 }
 
+int allocate_heap(struct task_struct *t) {
+  int pos;
+
+  pos = -1;
+
+  for (int i = 0; i < NR_TASKS; ++i) {
+    if (heap_zones[i].ref <= 0) {
+      pos = i;
+      break;
+    }
+  }
+  if (pos < 0)
+    return -ENOMEM;
+  t->my_heap = &heap_zones[pos];
+  t->my_heap->ref = 1;
+  t->my_heap->size = 0;
+  return 1;
+}
+
 void cpu_idle(void) {
   __asm__ __volatile__("sti" : : : "memory");
 
@@ -100,7 +119,6 @@ void init_idle(void) {
   ct->PID = 0;
   ct->pending_unblocks = 0;
   ct->current_state = ST_READY;
-  ct->heap_pag_size = 0;
   INIT_LIST_HEAD(&(ct->fills));
   INIT_LIST_HEAD(&(ct->waitList));
   set_quantum(ct, 0);
@@ -119,7 +137,7 @@ void init_task1(void) {
 
   ct->PID = 1;
   ct->pending_unblocks = 0;
-  ct->heap_pag_size = 0;
+  allocate_heap(ct);
   update_process_state_rr(ct, NULL);
   INIT_LIST_HEAD(&(ct->fills));
   INIT_LIST_HEAD(&(ct->waitList));
@@ -145,12 +163,21 @@ void inner_task_switch(union task_union *new) {
   cambio_stack(&current()->k_esp, new->task.k_esp);
 }
 
+void init_heap() {
+  for (int i = 0; i < NR_TASKS; ++i) {
+    heap_zones[i].size = 0;
+    heap_zones[i].ref = 0;
+  }
+}
+
 void init_sched() {
   INIT_LIST_HEAD(&blocked);
   INIT_LIST_HEAD(&read_blocked);
   INIT_LIST_HEAD(&freequeue);
   INIT_LIST_HEAD(&readyqueue);
-  for(int i = 0; i < NUM_SEMS; i++) semaphores[i].free = 1;
+  init_heap();
+  for (int i = 0; i < NUM_SEMS; i++)
+    semaphores[i].free = 1;
 
   for (int i = 0; i < NR_TASKS; i++) {
     task[i].task.PID = -1;

@@ -14,7 +14,7 @@
 #define KERNEL_STACK_SIZE 1024
 #define DEFAULT_QUANTUM_TICKS 10
 
-enum state_t { ST_RUN, ST_FREE, ST_READY,  ST_BLOCKED, ST_READBLOCKED };
+enum state_t { ST_RUN, ST_FREE, ST_READY, ST_BLOCKED, ST_READBLOCKED };
 
 struct task_struct {
   int PID; /* Process ID. This MUST be the first field of the struct. */
@@ -23,13 +23,13 @@ struct task_struct {
   unsigned long k_esp;
   int quantum;
   int pending_unblocks;
-  int heap_pag_size;
+  struct heap * my_heap;
   struct list_head fills;
   struct list_head parentAnchor;
   struct list_head waitList;
   struct list_head waitAnchor;
   struct list_head semList;
-  struct task_struct * pare;
+  struct task_struct *pare;
   enum state_t current_state;
 };
 
@@ -68,6 +68,8 @@ void init_task1(void);
 
 void init_idle(void);
 
+void init_heap(void);
+
 void init_sched(void);
 
 void cambio_stack(unsigned long *save_sp, unsigned long new_sp);
@@ -81,6 +83,9 @@ struct task_struct *list_head_to_task_struct(struct list_head *l);
 int allocate_DIR(struct task_struct *t);
 int add_DIR_ref(struct task_struct *t);
 int sub_DIR_ref(struct task_struct *t);
+
+
+int allocate_heap(struct task_struct *t);
 
 page_table_entry *get_PT(struct task_struct *t);
 

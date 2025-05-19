@@ -275,11 +275,9 @@ void test_dyn_mem() {
   print("\0");
   print("\n");
 
-  char *men_test = &mem1[20];
+  mem1 = "Este mensaje esta en heap \n \0";
 
-  men_test = "Este mensaje esta en heap \n";
-
-  print(men_test);
+  print(mem1);
 
   char *mem2 = dyn_mem(4);
   itoa((unsigned long)mem2, size);
@@ -301,9 +299,13 @@ void test_dyn_mem() {
 
   int pid = fork();
   if (pid == 0) {
-    print(men_test);
+    print(mem1);
+    for (int i = 0; i < 4 * 0x1000; i++)
+      mem1[i] = (char)i;
+
     exit();
   }
+  print(mem1);
   dyn_mem(-4);
 }
 
@@ -323,7 +325,7 @@ void test_sem_func() {
 void test_sem_func2() {
   print("Thread Hijo: me bloqueo con semaforo\n");
   int return_value = semWait(semid);
-  if(return_value < 0)
+  if (return_value < 0)
     print("-");
   char size[10];
   itoa(-return_value, size);
@@ -376,6 +378,8 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_dyn_mem();
   test_sem();
   test_sem2();
+
+
 
   // test_read2();
   // test_read3();

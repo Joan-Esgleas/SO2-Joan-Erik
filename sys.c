@@ -37,6 +37,8 @@ int semIDsystem = 0;
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
 
+int sys_semDestroy(int semid);
+
 int check_fd(int fd, int permissions) {
   if (fd != 1)
     return -9; /*EBADF*/
@@ -67,9 +69,11 @@ int sys_fork() {
   // c) en el document:
   // Obtenim un nou directori pel fill
   allocate_DIR((struct task_struct *)fill);
+  allocate_heap((struct task_struct *)fill);
+  fillTs->my_heap->size = current()->my_heap->size;
 
-  int frames[NUM_PAG_DATA + current()->heap_pag_size];
-  for (int i = 0; i < NUM_PAG_DATA + current()->heap_pag_size; i++) {
+  int frames[NUM_PAG_DATA + current()->my_heap->size];
+  for (int i = 0; i < NUM_PAG_DATA + current()->my_heap->size; i++) {
     frames[i] = alloc_frame();
 
     if (frames[i] < 0) {
@@ -95,10 +99,10 @@ int sys_fork() {
   for (int i = 0; i < NUM_PAG_DATA; i++)
     set_ss_pag(fillTP, PAG_LOG_INIT_DATA + i, frames[i]);
 
-  for (int i = NUM_PAG_DATA; i < current()->heap_pag_size; i++)
+  for (int i = NUM_PAG_DATA; i < current()->my_heap->size; i++)
     set_ss_pag(fillTP, PAG_LOG_INIT_HEAP + i, frames[i]);
 
-  int offset = NUM_PAG_DATA + NUM_PAG_CODE + current()->heap_pag_size;
+  int offset = NUM_PAG_DATA + NUM_PAG_CODE + current()->my_heap->size;
 
   for (int i = PAG_LOG_INIT_DATA; i < (PAG_LOG_INIT_DATA + NUM_PAG_DATA); i++) {
     set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
@@ -107,7 +111,7 @@ int sys_fork() {
   }
 
   for (int i = PAG_LOG_INIT_HEAP;
-       i < (PAG_LOG_INIT_HEAP + current()->heap_pag_size); i++) {
+       i < (PAG_LOG_INIT_HEAP + current()->my_heap->size); i++) {
     set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
     copy_data((void *)(i << 12), (void *)((i + offset) << 12), PAGE_SIZE);
     del_ss_pag(pareTP, i + offset);
@@ -165,6 +169,7 @@ int sys_create_thread(void (*function)(void *arg), void *stack,
 
   copy_data(current(), fill, sizeof(union task_union));
   add_DIR_ref((struct task_struct *)fill);
+  ++fillTs->my_heap->ref;
 
   // set_cr3(get_DIR(current()));
 
@@ -219,7 +224,7 @@ void sys_exit() {
       del_ss_pag(ctTP, i);
     }
     for (int i = PAG_LOG_INIT_HEAP;
-         i < PAG_LOG_INIT_HEAP + current()->heap_pag_size; i++) {
+         i < PAG_LOG_INIT_HEAP + current()->my_heap->size; i++) {
       free_frame(get_frame(ctTP, i));
       del_ss_pag(ctTP, i);
     }
@@ -227,7 +232,7 @@ void sys_exit() {
 
   ct->PID = -1;
   ct->dir_pages_baseAddr = NULL;
-  ct->heap_pag_size = 0;
+  ct->my_heap->ref--;
   ct->pare = NULL;
 
   list_del(&(current()->parentAnchor));
@@ -375,7 +380,9 @@ int sys_set_color(int fg, int bg) {
 
 char *sys_dyn_mem(int num_pags) {
 
-  if (num_pags >= 0) {
+  if (num_pags == 0)
+    return (char *)((PAG_LOG_INIT_HEAP + current()->my_heap->size) << 12);
+  else if (num_pags > 0) {
     int frames[num_pags];
     for (int i = 0; i < num_pags; i++) {
       frames[i] = alloc_frame();
@@ -384,39 +391,32 @@ char *sys_dyn_mem(int num_pags) {
         // Si no hi ha mes espai, s'allibera el espai inutil que haviem reservat
         for (int j = 0; j < i; j++) {
           free_frame(frames[j]);
-          del_ss_pag(get_PT(current()), PAG_LOG_INIT_HEAP + current()->heap_pag_size + j);
+          del_ss_pag(get_PT(current()),
+                     PAG_LOG_INIT_HEAP + current()->my_heap->size + j);
         }
         return (char *)(-ENOMEM);
       } else {
         set_ss_pag(get_PT(current()),
-                   PAG_LOG_INIT_HEAP + current()->heap_pag_size + i, frames[i]);
+                   PAG_LOG_INIT_HEAP + current()->my_heap->size + i, frames[i]);
       }
     }
-
-    unsigned long ret = ((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
-    current()->heap_pag_size += num_pags;
+    unsigned long ret = ((PAG_LOG_INIT_HEAP + current()->my_heap->size) << 12);
+    current()->my_heap->size += num_pags;
     return (char *)ret;
-
   } else {
     num_pags = num_pags * -1;
-    if (current()->heap_pag_size < num_pags)
+    if (current()->my_heap->size < num_pags)
       return (char *)-EINVAL;
 
     for (int i = 0; i < num_pags; ++i) {
       free_frame(get_frame(get_PT(current()),
-                           PAG_LOG_INIT_HEAP + current()->heap_pag_size - i));
+                           PAG_LOG_INIT_HEAP + current()->my_heap->size - i));
       del_ss_pag(get_PT(current()),
-                 PAG_LOG_INIT_HEAP + current()->heap_pag_size - i);
+                 PAG_LOG_INIT_HEAP + current()->my_heap->size - i);
     }
+    current()->my_heap->size -= num_pags;
     set_cr3(get_DIR(current()));
-    for (int i = 0; i < NR_TASKS; ++i) {
-      if (task[i].task.PID > 0 &&
-          task[i].task.dir_pages_baseAddr == current()->dir_pages_baseAddr) {
-        task[i].task.heap_pag_size -= num_pags;
-      }
-    }
-
-    return (char *)((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
+    return (char *)((PAG_LOG_INIT_HEAP + current()->my_heap->size) << 12);
   }
 }
 
