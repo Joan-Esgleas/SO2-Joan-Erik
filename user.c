@@ -275,7 +275,7 @@ void test_dyn_mem() {
   print("\0");
   print("\n");
 
-  char *men_test = &mem1[-20];
+  char *men_test = &mem1[20];
 
   men_test = "Este mensaje esta en heap \n";
 
@@ -293,11 +293,15 @@ void test_dyn_mem() {
   print("\0");
   print("\n");
 
-  int pid = fork();
+  int *p = (int *)dyn_mem(4);
+  for (int i = 0; i < 4096; i++)
+    p[i] = i;
 
+  dyn_mem(-4);
+
+  int pid = fork();
   if (pid == 0) {
     print(men_test);
-    dyn_mem(-4);
     exit();
   }
   dyn_mem(-4);
@@ -355,12 +359,11 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_dyn_mem();
   test_sem();
   test_sem2();
-  
+
   // test_read2();
   // test_read3();
   // test_fork2();
-  
-  
+
   while (1) {
   }
 }

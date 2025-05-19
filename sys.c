@@ -386,8 +386,9 @@ char *sys_dyn_mem(int num_pags) {
       }
     }
 
+    unsigned long ret = ((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
     current()->heap_pag_size += num_pags;
-    return (char *)((PAG_LOG_INIT_HEAP + current()->heap_pag_size) << 12);
+    return (char *)ret;
 
   } else {
     num_pags = num_pags * -1;
