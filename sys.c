@@ -31,7 +31,8 @@ extern Byte background;
 
 int pidGlobal = 1000;
 
-int semIDglobal = 1000;
+int semIDglobal = 100000;
+int semIDsystem = 0;
 
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
@@ -206,6 +207,11 @@ int sys_create_thread(void (*function)(void *arg), void *stack,
 void sys_exit() {
   struct task_struct *ct = current();
   page_table_entry *ctTP = get_PT(ct);
+
+  for (int i = 0; i < NUM_SEMS; i++) {
+    if (semaphores[i].creatorPID == ct->PID)
+      sys_semDestroy(semaphores[i].id);
+  }
 
   if (sub_DIR_ref(ct) <= 0) {
     for (int i = PAG_LOG_INIT_DATA; i < PAG_LOG_INIT_DATA + NUM_PAG_DATA; i++) {
@@ -413,6 +419,23 @@ char *sys_dyn_mem(int num_pags) {
   }
 }
 
+int sys_semCreate_for_system(int initial_value) {
+  int i = 0;
+  while (i < NUM_SEMS) {
+    if (semaphores[i].free) {
+      semaphores[i].id = semIDsystem;
+      semaphores[i].free = 0;
+      semaphores[i].value = initial_value;
+      semaphores[i].creatorPID = sys_getpid();
+      INIT_LIST_HEAD(&(semaphores[i].blockedThreads));
+      ++semIDsystem;
+      return (semIDsystem - 1);
+    }
+    ++i;
+  }
+  return -1;
+}
+
 int sys_semCreate(int initial_value) {
   int i = 0;
   while (i < NUM_SEMS) {
@@ -442,7 +465,7 @@ int sys_semWait(int semid) {
         update_process_state_rr(current(), &blocked);
         sched_next_rr();
       }
-      return semaphores[i].value;
+      return semaphores[i].creatorPID;
     }
     ++i;
   }
@@ -490,6 +513,7 @@ int sys_semDestroy(int semid) {
       while (!(list_empty(&(semaphores[i].blockedThreads)))) {
         struct list_head *e = list_first(&(semaphores[i].blockedThreads));
         struct task_struct *firstBlocked = list_head_to_task_struct(e);
+        semaphores[i].creatorPID = -1;
         list_del(e);
         sys_unblock_sem(firstBlocked);
       }

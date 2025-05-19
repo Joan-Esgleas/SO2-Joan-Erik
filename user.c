@@ -311,8 +311,25 @@ int semid;
 
 void test_sem_func() {
   print("Thread Hijo: me bloqueo con semaforo\n");
-  semWait(semid);
+  int return_value = semWait(semid);
+  char size[10];
+  itoa(return_value, size);
+  print(size);
+  print("\n");
   print("Thread Hijo: me he desbloqueado con semaforo\n");
+  exit_thread();
+}
+
+void test_sem_func2() {
+  print("Thread Hijo: me bloqueo con semaforo\n");
+  int return_value = semWait(semid);
+  if(return_value < 0)
+    print("-");
+  char size[10];
+  itoa(-return_value, size);
+  print(size);
+  print("\n");
+  print("Thread Hijo: me he desbloqueado con semaforo Borrado\n");
   exit_thread();
 }
 
@@ -333,7 +350,7 @@ void test_sem() {
 void test_sem2() {
   print("\n==== Test de semaforo 2====\n");
   semid = semCreate(0);
-  int tid = create_thread((void *)test_sem_func, &stack[1024], 0);
+  int tid = create_thread((void *)test_sem_func2, &stack[1024], 0);
   print("Thread Padre: pulsa una tecla para desbloquear al hijo\n");
   char buf[1];
   read(buf, 1);
