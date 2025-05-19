@@ -384,6 +384,7 @@ char *sys_dyn_mem(int num_pags) {
         // Si no hi ha mes espai, s'allibera el espai inutil que haviem reservat
         for (int j = 0; j < i; j++) {
           free_frame(frames[j]);
+          del_ss_pag(get_PT(current()), PAG_LOG_INIT_HEAP + current()->heap_pag_size + j);
         }
         return (char *)(-ENOMEM);
       } else {
