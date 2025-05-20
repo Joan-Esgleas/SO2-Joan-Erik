@@ -100,8 +100,8 @@ int sys_fork() {
   for (int i = 0; i < NUM_PAG_DATA; i++)
     set_ss_pag(fillTP, PAG_LOG_INIT_DATA + i, frames[i]);
 
-  for (int i = NUM_PAG_DATA; i < current()->my_heap->size; i++)
-    set_ss_pag(fillTP, PAG_LOG_INIT_HEAP + i, frames[i]);
+  for (int i = 0; i < current()->my_heap->size; i++)
+    set_ss_pag(fillTP, PAG_LOG_INIT_HEAP + i, frames[NUM_PAG_DATA + i]);
 
   int offset = NUM_PAG_DATA + NUM_PAG_CODE + current()->my_heap->size;
 
@@ -111,6 +111,8 @@ int sys_fork() {
     del_ss_pag(pareTP, i + offset);
   }
 
+  offset = NUM_PAG_DATA + current()->my_heap->size;
+  
   for (int i = PAG_LOG_INIT_HEAP;
        i < (PAG_LOG_INIT_HEAP + current()->my_heap->size); i++) {
     set_ss_pag(pareTP, i + offset, get_frame(fillTP, i));
