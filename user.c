@@ -309,7 +309,73 @@ void test_dyn_mem() {
   dyn_mem(-4);
 }
 
+char *mem1;
 int semid;
+int my_pid;
+
+void test_thread_dyn_mem(char *c) {
+
+  print("\n Hijo bloquea \n");
+  semSignal(semid);
+  block();
+  print("\n Thread hijo: tiene mem\n");
+  print(mem1);
+
+  char size[9];
+  itoa((unsigned long)dyn_mem(0), size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  semSignal(semid);
+  print("bloqueamos\n");
+  block();
+
+  unsigned long ph = (unsigned long)dyn_mem(0);
+  itoa(ph, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  exit_thread();
+}
+
+void test_dyn_mem2() {
+  print("\n==== Test de dyn_mem 2 ====\n");
+  semid = semCreate(0);
+  my_pid = getpid();
+  int tid = create_thread((void *)test_thread_dyn_mem, &stack[1024], 0);
+  print("Hemos cread hijo \n");
+  semWait(semid);
+  mem1 = dyn_mem(4);
+  char size[9];
+  itoa((unsigned long)mem1, size);
+  print(size);
+  print("\0");
+  print("\n");
+  itoa((unsigned long)dyn_mem(0), size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  for (int i = 0; i < (4 * 0x1000); i++)
+    mem1[i] = i;
+
+  mem1 = "Este mensaje esta en heap \n \0";
+  print(mem1);
+  print("\n unblock hijo \n");
+  unblock(tid);
+  semWait(semid);
+  print("\n Liberamos: \n");
+  char *ph = dyn_mem(-4);
+  itoa((unsigned long)ph, size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  print("\n unblock hijo 2 \n");
+  unblock(tid);
+}
 
 void test_sem_func() {
   print("Thread Hijo: me bloqueo con semaforo\n");
@@ -361,6 +427,32 @@ void test_sem2() {
   print("Thread padre: Mi hijo se ha desbloqueado al borrar el semaforo.\n");
 }
 
+void test_malloc_free() {
+  print("\n==== Test malloc free ====\n");
+  char size[9];
+  itoa((unsigned long)dyn_mem(0), size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  char *p = malloc((PAGE_SIZE + PAGE_SIZE - MALLOC_HEADER_SIZE) * sizeof(char));
+
+  itoa((unsigned long)dyn_mem(0), size);
+  print(size);
+  print("\0");
+  print("\n");
+
+  for (int i = 0; i < PAGE_SIZE + PAGE_SIZE - MALLOC_HEADER_SIZE; i++)
+    p[i] = 'A';
+
+  free(p);
+
+  itoa((unsigned long)dyn_mem(0), size);
+  print(size);
+  print("\0");
+  print("\n");
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
@@ -376,10 +468,10 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_combinado2();
   test_thread();
   test_dyn_mem();
+  test_dyn_mem2();
   test_sem();
   test_sem2();
-
-
+  test_malloc_free();
 
   // test_read2();
   // test_read3();

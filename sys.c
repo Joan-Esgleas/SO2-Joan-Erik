@@ -7,6 +7,7 @@
 #include "include/mm.h"
 #include "include/mm_address.h"
 #include <devices.h>
+#include <linux/limits.h>
 #include <utils.h>
 
 #include <io.h>
@@ -169,12 +170,13 @@ int sys_create_thread(void (*function)(void *arg), void *stack,
 
   copy_data(current(), fill, sizeof(union task_union));
   add_DIR_ref((struct task_struct *)fill);
-  ++fillTs->my_heap->ref;
 
   // set_cr3(get_DIR(current()));
 
   fill->task.PID = pidGlobal++;
   fillTs->pare = current();
+  current()->my_heap->ref++;
+  fillTs->my_heap = current()->my_heap;
   list_add_tail(&fillTs->parentAnchor, &(current()->fills));
   INIT_LIST_HEAD(&(fillTs->fills));
   INIT_LIST_HEAD(&(fillTs->waitList));
@@ -408,11 +410,10 @@ char *sys_dyn_mem(int num_pags) {
     if (current()->my_heap->size < num_pags)
       return (char *)-EINVAL;
 
-    for (int i = 0; i < num_pags; ++i) {
-      free_frame(get_frame(get_PT(current()),
-                           PAG_LOG_INIT_HEAP + current()->my_heap->size - i));
-      del_ss_pag(get_PT(current()),
-                 PAG_LOG_INIT_HEAP + current()->my_heap->size - i);
+    for (int i = PAG_LOG_INIT_HEAP + current()->my_heap->size - num_pags;
+         i < PAG_LOG_INIT_HEAP + current()->my_heap->size; ++i) {
+      free_frame(get_frame(get_PT(current()), i));
+      del_ss_pag(get_PT(current()), i);
     }
     current()->my_heap->size -= num_pags;
     set_cr3(get_DIR(current()));
