@@ -23,7 +23,7 @@ struct task_struct {
   unsigned long k_esp;
   int quantum;
   int pending_unblocks;
-  struct heap * my_heap;
+  int * my_heap;
   struct list_head fills;
   struct list_head parentAnchor;
   struct list_head waitList;

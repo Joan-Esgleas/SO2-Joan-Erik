@@ -9,8 +9,8 @@
 #include <stats.h>
 
 #define PAGE_SIZE 0x1000
-#define MALLOC_HEADER_SIZE 8
 #define NULL 0
+#define MALLOC_HEADER_SIZE 8
 
 typedef struct block_header {
     int size;

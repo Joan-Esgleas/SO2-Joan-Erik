@@ -86,20 +86,13 @@ int allocate_DIR(struct task_struct *t) {
 
 int allocate_heap(struct task_struct *t) {
   int pos;
-
   pos = -1;
-
-  for (int i = 0; i < NR_TASKS; ++i) {
-    if (heap_zones[i].ref <= 0) {
-      pos = i;
-      break;
-    }
-  }
+  pos = ((int)t->dir_pages_baseAddr - (int)dir_pages) /
+        (TOTAL_PAGES * sizeof(page_table_entry));
   if (pos < 0)
     return -ENOMEM;
+  heap_zones[pos] = 0;
   t->my_heap = &heap_zones[pos];
-  t->my_heap->ref = 1;
-  t->my_heap->size = 0;
   return 1;
 }
 
@@ -137,13 +130,13 @@ void init_task1(void) {
 
   ct->PID = 1;
   ct->pending_unblocks = 0;
-  allocate_heap(ct);
   update_process_state_rr(ct, NULL);
   INIT_LIST_HEAD(&(ct->fills));
   INIT_LIST_HEAD(&(ct->waitList));
   set_quantum(ct, DEFAULT_QUANTUM_TICKS);
   tick_counter = get_quantum(ct);
   allocate_DIR(ct);
+  allocate_heap(ct);
 
   set_user_pages(ct);
   tss.esp0 =
@@ -165,8 +158,7 @@ void inner_task_switch(union task_union *new) {
 
 void init_heap() {
   for (int i = 0; i < NR_TASKS; ++i) {
-    heap_zones[i].size = 0;
-    heap_zones[i].ref = 0;
+    heap_zones[i] = 0;
   }
 }
 
