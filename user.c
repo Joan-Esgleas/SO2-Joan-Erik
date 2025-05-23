@@ -1,6 +1,19 @@
 #include "include/libc.h"
 #include <libc.h>
 
+#define ROWS 25
+#define COLS 80
+#define sizeYDragon 8
+#define sizeXDragon 10
+#define sizeYEnemigo 7
+#define sizeXEnemigo 7
+#define NEGRO 0
+#define VERDE 2
+#define ROJO 4
+#define ROSA 5
+#define MARRON 6
+#define BLANCO 7
+
 char buff[24];
 
 int pid;
@@ -453,11 +466,397 @@ void test_malloc_free() {
   print("\n");
 }
 
+enum characterState { ST_UP, ST_DOWN, ST_LEFT, ST_RIGHT, ST_STOP };
+
+enum characterDirection { LEFT, RIGHT };
+
+struct character {
+	int x;
+	int y;
+	enum characterState state;
+	enum characterDirection dir;
+};
+
+typedef struct {
+    char ch;
+    int fg;
+    int bg;
+} pixel;
+
+struct character *player;
+struct character *enemigo1;
+struct character *enemigo2;
+
+
+char stackKeyboard[100];
+char stackGame[1024];
+
+int semChanges;
+
+char **mapa;
+pixel **dragon;
+pixel **enemigo;
+
+void keyboardThread() {
+  char buffer[1];
+  while(1) {
+  	if(read(buffer, 1) > 0) {
+  		switch(buffer[0]) {
+  			case 'w': player->state = ST_UP; break;
+  			case 's': player->state = ST_DOWN; break;
+  			case 'a': player->state = ST_LEFT; player->dir = LEFT; break;
+  			case 'd': player->state = ST_RIGHT; player->dir = RIGHT; break;
+  			default: player->state = ST_STOP; break;
+  		}
+  		semSignal(semChanges);
+  	}
+  }
+	
+}
+
+void pintaTrozoMapa(int x, int y, int size) {
+  char buffer[1];
+  buffer[0] = ' ';
+  
+  for(int i = y; (i < y + size) && (i < ROWS); ++i) {
+  	for(int j = x; (j < x + size) && (j < COLS); ++j) {
+  		gotoxy(j, i);
+  		if(mapa[i][j] == '1') set_color(BLANCO, NEGRO);
+		else set_color(BLANCO, MARRON);  	
+		write(1, buffer, 1);
+  	}
+  }
+}
+
+void pintaMapa(char ** map) {
+  char buffer[1];
+  buffer[0] = ' ';
+  
+  for(int i = 0; i < ROWS; ++i) {
+  	for(int j = 0; j < COLS; ++j) {
+  		gotoxy(j, i);
+  		if(map[i][j] == '1') set_color(BLANCO, NEGRO);
+		else set_color(BLANCO, MARRON);  	
+		write(1, buffer, 1);
+  	}
+  } 
+}
+
+void creaMapa(char ** map) {
+  for (int i = 0; i < ROWS; ++i) {
+      for (int j = 0; j < COLS; ++j) {
+          map[i][j] = '1';
+      }
+  }
+
+  //Bordes
+  for (int i = 0; i < ROWS; ++i) {
+      for (int j = 0; j < COLS; ++j) {
+          if (i < 1 || i >= ROWS - 1 || j < 2 || j >= COLS - 2) {
+              map[i][j] = '0';
+          }
+      }
+  }
+
+  for(int i = 0; i < 24; ++i) {
+  	//Escalon de abajo 
+  	map[ROWS - 2][i + 1] = '0';
+  	map[ROWS - 2][COLS - 2 - i] = '0';
+  	if(i < 12) {
+  		//Escalon de arriba
+  		map[ROWS - 3][i + 1] = '0';
+  		map[ROWS - 3][COLS - 2 - i] = '0';
+  	}
+  }
+}
+
+void pintaDragonIzquierda(int x0, int y0) {
+    char buf[1];
+    for (int i = 0; i < sizeYDragon; ++i) {
+        for (int j = 0; j < sizeXDragon; ++j) {
+            int espejoJ = sizeXDragon - 1 - j; // Índice reflejado
+            gotoxy(x0 + j, y0 + i);
+            set_color(dragon[i][espejoJ].fg, dragon[i][espejoJ].bg);
+            buf[0] = dragon[i][espejoJ].ch;
+            write(1, buf, 1);
+        }
+    }
+}
+
+void pintaDragonDerecha(int x0, int y0) {
+    char buf[1];
+    for (int i = 0; i < sizeYDragon; ++i) {
+        for (int j = 0; j < sizeXDragon; ++j) {
+            gotoxy(x0 + j, y0 + i);
+            set_color(dragon[i][j].fg, dragon[i][j].bg);
+            buf[0] = dragon[i][j].ch;
+            write(1, buf, 1);
+        }
+    }
+}
+
+void creaDragon() {
+    for (int i = 0; i < sizeYDragon; ++i) {
+        for (int j = 0; j < sizeXDragon; ++j) {
+            dragon[i][j].ch = ' ';
+            dragon[i][j].fg = NEGRO;
+            dragon[i][j].bg = NEGRO;
+        }
+    }
+         
+    dragon[0][2] = (pixel){' ', NEGRO, ROJO};
+    dragon[0][3] = (pixel){' ', NEGRO, ROJO};
+    dragon[0][4] = (pixel){' ', NEGRO, ROJO};
+    dragon[1][3] = (pixel){' ', NEGRO, ROJO};
+    dragon[2][1] = (pixel){' ', NEGRO, ROJO};
+    dragon[2][2] = (pixel){' ', NEGRO, ROJO};
+    dragon[3][2] = (pixel){' ', NEGRO, ROJO};
+    dragon[4][1] = (pixel){' ', NEGRO, ROJO};
+    dragon[4][3] = (pixel){' ', NEGRO, ROJO};
+    dragon[5][0] = (pixel){' ', NEGRO, ROJO};
+    dragon[5][2] = (pixel){' ', NEGRO, ROJO};
+    dragon[5][3] = (pixel){' ', NEGRO, ROJO};
+    dragon[5][4] = (pixel){' ', NEGRO, ROJO};
+    dragon[6][2] = (pixel){' ', NEGRO, ROJO};
+    dragon[6][3] = (pixel){' ', NEGRO, ROJO};
+    dragon[6][6] = (pixel){' ', NEGRO, ROJO};
+    dragon[7][5] = (pixel){' ', NEGRO, ROJO};
+    dragon[7][6] = (pixel){' ', NEGRO, ROJO};
+    dragon[7][7] = (pixel){' ', NEGRO, ROJO};
+    dragon[7][9] = (pixel){' ', NEGRO, ROJO};
+    
+    dragon[0][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[0][6] = (pixel){' ', NEGRO, VERDE};
+    dragon[0][7] = (pixel){' ', NEGRO, VERDE};
+    dragon[0][8] = (pixel){' ', NEGRO, VERDE};
+    dragon[1][4] = (pixel){' ', NEGRO, VERDE};
+    dragon[1][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[1][7] = (pixel){' ', NEGRO, VERDE};
+    dragon[2][3] = (pixel){' ', NEGRO, VERDE};
+    dragon[2][4] = (pixel){' ', NEGRO, VERDE};
+    dragon[2][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[2][7] = (pixel){' ', NEGRO, VERDE};
+    dragon[2][9] = (pixel){' ', NEGRO, VERDE};
+    dragon[3][3] = (pixel){' ', NEGRO, VERDE};
+    dragon[3][4] = (pixel){' ', NEGRO, VERDE};
+    dragon[3][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[3][7] = (pixel){' ', NEGRO, VERDE};
+    dragon[3][9] = (pixel){' ', NEGRO, VERDE};
+    dragon[4][2] = (pixel){' ', NEGRO, VERDE};
+    dragon[4][4] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][1] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][6] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][7] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][8] = (pixel){' ', NEGRO, VERDE};
+    dragon[5][9] = (pixel){' ', NEGRO, VERDE};
+    dragon[6][1] = (pixel){' ', NEGRO, VERDE};
+    dragon[6][4] = (pixel){' ', NEGRO, VERDE};
+    dragon[6][5] = (pixel){' ', NEGRO, VERDE};
+    dragon[7][0] = (pixel){' ', NEGRO, VERDE};
+    dragon[7][1] = (pixel){' ', NEGRO, VERDE};
+    dragon[7][2] = (pixel){' ', NEGRO, VERDE};
+    dragon[7][3] = (pixel){' ', NEGRO, VERDE};
+    dragon[7][4] = (pixel){' ', NEGRO, VERDE};
+    
+    dragon[1][6] = (pixel){' ', NEGRO, BLANCO};
+    dragon[1][8] = (pixel){' ', NEGRO, BLANCO};
+    dragon[3][6] = (pixel){' ', NEGRO, BLANCO};
+    dragon[3][8] = (pixel){' ', NEGRO, BLANCO};
+    dragon[4][5] = (pixel){'V', BLANCO, NEGRO};
+    dragon[4][6] = (pixel){'V', BLANCO, NEGRO};
+    dragon[4][7] = (pixel){'V', BLANCO, NEGRO};
+    dragon[4][8] = (pixel){'V', BLANCO, NEGRO};
+    dragon[6][7] = (pixel){' ', NEGRO, BLANCO};
+    dragon[6][8] = (pixel){' ', NEGRO, BLANCO};
+    dragon[7][8] = (pixel){' ', NEGRO, BLANCO};
+}
+
+void pintaEnemigo(int x0, int y0) {
+    char buf[1];
+    for (int i = 0; i < sizeYEnemigo; ++i) {
+        for (int j = 0; j < sizeXEnemigo; ++j) {
+            gotoxy(x0 + j, y0 + i);
+            set_color(enemigo[i][j].fg, enemigo[i][j].bg);
+            buf[0] = enemigo[i][j].ch;
+            write(1, buf, 1);
+        }
+    }
+}
+
+void creaEnemigo() {
+    for (int i = 0; i < sizeYEnemigo; ++i) {
+        for (int j = 0; j < sizeXEnemigo; ++j) {
+            enemigo[i][j].ch = ' ';
+            enemigo[i][j].fg = NEGRO;
+            enemigo[i][j].bg = NEGRO;
+        }
+    }
+    
+    enemigo[0][2] = (pixel){' ', NEGRO, MARRON};
+    enemigo[0][3] = (pixel){' ', NEGRO, MARRON};
+    enemigo[0][4] = (pixel){' ', NEGRO, MARRON};
+    enemigo[1][1] = (pixel){' ', NEGRO, MARRON};
+    enemigo[1][5] = (pixel){' ', NEGRO, MARRON};
+    enemigo[2][0] = (pixel){' ', NEGRO, MARRON};
+    enemigo[2][3] = (pixel){' ', NEGRO, MARRON};
+    enemigo[2][6] = (pixel){' ', NEGRO, MARRON};
+    enemigo[3][0] = (pixel){' ', NEGRO, MARRON};
+    enemigo[3][3] = (pixel){' ', NEGRO, MARRON};
+    enemigo[3][6] = (pixel){' ', NEGRO, MARRON};
+    enemigo[4][1] = (pixel){' ', NEGRO, MARRON};
+    enemigo[4][2] = (pixel){' ', NEGRO, MARRON};
+    enemigo[4][3] = (pixel){' ', NEGRO, MARRON};
+    enemigo[4][4] = (pixel){' ', NEGRO, MARRON};
+    enemigo[4][5] = (pixel){' ', NEGRO, MARRON};  
+    
+    enemigo[2][1] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[2][5] = (pixel){' ', NEGRO, BLANCO};  
+    enemigo[3][1] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[3][2] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[3][4] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[3][5] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[5][1] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[5][2] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[5][3] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[5][4] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[5][5] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[6][3] = (pixel){' ', NEGRO, BLANCO};
+    
+    enemigo[0][0] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[0][1] = (pixel){' ', NEGRO, BLANCO};  
+    enemigo[0][5] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[0][6] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[1][2] = (pixel){' ', NEGRO, BLANCO};
+    enemigo[1][3] = (pixel){' ', NEGRO, BLANCO}; 
+    enemigo[1][4] = (pixel){' ', NEGRO, BLANCO}; 
+    
+    enemigo[6][0] = (pixel){' ', NEGRO, ROJO};
+    enemigo[6][1] = (pixel){' ', NEGRO, ROJO};
+    enemigo[6][2] = (pixel){' ', NEGRO, ROJO};
+    enemigo[6][4] = (pixel){' ', NEGRO, ROJO};   
+    enemigo[6][5] = (pixel){' ', NEGRO, ROJO};
+    enemigo[6][6] = (pixel){' ', NEGRO, ROJO};     
+}
+
+int posicionValida(char ** map, int x, int y, int sizeX, int sizeY) {
+  char buffer[1];
+  buffer[0] = ' ';
+  
+  for(int i = y; (i < y + sizeY) && (i < ROWS); ++i) {
+  	for(int j = x; (j < x + sizeX) && (j < COLS); ++j) {
+  		if(map[i][j] == '0') return 0;
+  	}
+  }
+  
+  return 1;
+}
+
+//enemigoStr es de enemigoStruct
+void mueveEnemigo(int numEnemigo) {
+  struct character * enemigoStr;
+  if(numEnemigo == 1) enemigoStr = enemigo1;
+  else enemigoStr = enemigo2;
+	
+  int x = enemigoStr->x;
+  int y = enemigoStr->y;
+
+  if (x < 0 || y < 0 || x >= COLS || y >= ROWS)
+  	pintaEnemigo(1, 1); return;
+
+  if (enemigoStr->dir == RIGHT) {
+ 	if (x + sizeXEnemigo >= COLS || y + sizeYEnemigo >= ROWS) {
+		enemigoStr->dir = LEFT;
+		return;
+	}
+	if (mapa[y + sizeYEnemigo - 1][x + sizeXEnemigo] == '1' || 
+	    mapa[y + sizeYEnemigo][x + sizeXEnemigo] == '0') {
+		enemigoStr->dir = LEFT;
+	} else {
+		enemigoStr->x++;
+	}
+  } else { // LEFT
+	if (x - 1 < 0 || y + sizeYEnemigo >= ROWS) {
+		enemigoStr->dir = RIGHT;
+		return;
+	}
+	if (mapa[y + sizeYEnemigo - 1][x - 1] == '1' || 
+	    mapa[y + sizeYEnemigo][x - 1] == '0') {
+		enemigoStr->dir = RIGHT;
+	} else {
+		enemigoStr->x--;
+	}
+  }  
+}
+
+void gameThread() {  
+  int xAntPlayer = player->x;
+  int yAntPlayer = player->y;
+  int xAntEnemigo1 = enemigo1->x;
+  int yAntEnemigo1 = enemigo1->y;
+  int xAntEnemigo2 = enemigo2->x;
+  int yAntEnemigo2 = enemigo2->y;
+  
+  while(1) {	
+	semWait(semChanges);  	
+	//Borra y pinta al player:
+	gotoxy(xAntPlayer, yAntPlayer);
+	
+	pintaTrozoMapa(xAntPlayer, yAntPlayer, 10);
+	
+	switch(player->state) {
+	  case ST_UP: --(player->y); break;
+	  case ST_DOWN: ++(player->y); break;
+	  case ST_LEFT: --(player->x); break;
+	  case ST_RIGHT: ++(player->x); break;
+	  default: break;
+	}
+	
+	if(!posicionValida(mapa, player->x, player->y, sizeXDragon, sizeYDragon)) {
+		player->x = xAntPlayer;
+		player->y = yAntPlayer;
+	}
+	
+	if(player->dir == RIGHT) pintaDragonDerecha(player->x, player->y);
+	else pintaDragonIzquierda(player->x, player->y);
+	
+	xAntPlayer = player->x;
+  	yAntPlayer = player->y;
+  	
+  	player->state = ST_STOP;
+  	
+  	//Borra y pinta al enemigo1:
+  	gotoxy(xAntEnemigo1, yAntEnemigo1);
+  	
+  	pintaTrozoMapa(xAntEnemigo1, yAntEnemigo1, 7);
+  	
+  	mueveEnemigo(&enemigo1);
+  	
+  	pintaEnemigo(enemigo1->x, enemigo1->y);
+  	
+  	xAntEnemigo1 = enemigo1->x;
+  	yAntEnemigo1 = enemigo1->y;
+  	
+  	//Borra y pinta al enemigo2:
+  	gotoxy(xAntEnemigo2, yAntEnemigo2);
+  	
+  	pintaTrozoMapa(xAntEnemigo2, yAntEnemigo2, 7);
+  	
+  	mueveEnemigo(&enemigo2);
+  	
+  	pintaEnemigo(enemigo2->x, enemigo2->y);
+  	
+  	xAntEnemigo2 = enemigo2->x;
+  	yAntEnemigo2 = enemigo2->y;
+  }
+}
+
 int __attribute__((__section__(".text.main"))) main(void) {
   /* Next line, tries to move value 0 to CR3 register. This register is a
    * privileged one, and so it will raise an exception */
   /* __asm__ __volatile__ ("mov %0, %%cr3"::"r" (0) ); */
 
+  /*
   test_write();
   test_set_color();
   test_gotoxy();
@@ -472,11 +871,54 @@ int __attribute__((__section__(".text.main"))) main(void) {
   test_sem();
   test_sem2();
   test_malloc_free();
-
+  */
+  
   // test_read2();
   // test_read3();
   // test_fork2();
 
+  player = malloc(sizeof(struct character));
+  enemigo1 = malloc(sizeof(struct character));
+  enemigo2 = malloc(sizeof(struct character));
+  
+  mapa = (char **)malloc(ROWS * sizeof(char *));
+
+  for (int i = 0; i < ROWS; ++i) mapa[i] = (char *)malloc(COLS * sizeof(char));
+  
+  dragon = (pixel**)malloc(sizeof(pixel*) * sizeYDragon);
+  
+  for (int i = 0; i < sizeYDragon; ++i) dragon[i] = (pixel*)malloc(sizeof(pixel) * sizeXDragon);
+  
+  enemigo = (pixel**)malloc(sizeof(pixel*) * sizeYEnemigo);
+  
+  for (int i = 0; i < sizeYEnemigo; ++i) enemigo[i] = (pixel*)malloc(sizeof(pixel) * sizeXEnemigo);
+  
+  creaMapa(mapa);
+  pintaMapa(mapa);
+  
+  creaDragon();
+  creaEnemigo();
+  
+  player->x = COLS/2;
+  player->y = ROWS - 9;
+  player->dir = RIGHT;
+  player->state = ST_STOP;
+  pintaDragonDerecha(player->x, player->y);
+  
+  enemigo1->x = 12;
+  enemigo1->y = ROWS - 9;
+  enemigo1->dir = RIGHT;
+  
+  enemigo2->x = 60;
+  enemigo2->y = ROWS - 9;
+  enemigo2->dir = LEFT;
+  
+  semChanges = semCreate(0);
+  
+  create_thread(&keyboardThread, &stackKeyboard[100], NULL);
+  create_thread(&gameThread, &stackGame[1024], NULL);
+  
+  semSignal(semChanges);
   while (1) {
   }
 }

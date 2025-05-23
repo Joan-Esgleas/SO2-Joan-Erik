@@ -148,7 +148,7 @@ void keyboard_routine() {
       struct task_struct *nt = list_head_to_task_struct(e);
       task_switch((union task_union *)nt);
     }
-    printc_xy(0, 0, char_print);
+    //printc_xy(0, 0, char_print);
   }
 }
 
