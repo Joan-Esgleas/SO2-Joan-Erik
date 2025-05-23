@@ -38,6 +38,9 @@ int semIDsystem = 0;
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
 
+
+int sys_semDestroy_extended(int semid, int userMode);
+
 int check_fd(int fd, int permissions) {
   if (fd != 1)
     return -9; /*EBADF*/
