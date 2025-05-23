@@ -68,41 +68,52 @@ void perror() {
   }
 }
 
-char *heap_start = 0;
-char *heap_end = 0;
+char *heap_start = NULL;
+char *heap_end = NULL;
 
 block_header *next_block(block_header *block) {
   return (block_header *)((char *)block + block->size);
+}
+
+static block_header *prev_block(block_header *block) {
+  block_header *block_footer =
+      (block_header *)((char *)block - MALLOC_HEADER_SIZE);
+  int prev_size = block_footer->size;
+  return (block_header *)((char *)block - prev_size);
+}
+
+static void write_header_footer(block_header *block, int size, int is_free) {
+  block->size = size;
+  block->is_free = is_free;
+  block_header *footer =
+      (block_header *)((char *)block + size - MALLOC_HEADER_SIZE);
+  footer->size = size;
+  footer->is_free = is_free;
 }
 
 char *malloc(int num_bytes) {
   if (num_bytes <= 0)
     return (char *)-1;
 
-  int total_size = num_bytes + MALLOC_HEADER_SIZE;
-  if (total_size % MALLOC_HEADER_SIZE != 0) {
-    total_size += MALLOC_HEADER_SIZE - (total_size % 8);
-  }
+  int total_size = num_bytes + 2 * MALLOC_HEADER_SIZE;
 
   if (!heap_start) {
     heap_start = dyn_mem(1);
     heap_end = heap_start + PAGE_SIZE;
-    block_header *initial = (block_header *)heap_start;
-    initial->size = PAGE_SIZE;
-    initial->is_free = 1;
+    write_header_footer((block_header *)heap_start, PAGE_SIZE, 1);
   }
 
   block_header *current = (block_header *)heap_start;
   while ((char *)current < heap_end) {
     if (current->is_free && current->size >= total_size) {
-      if (current->size >= total_size +  MALLOC_HEADER_SIZE + 8) {
-        block_header *new_block =
-            (block_header *)((char *)current + total_size);
-        new_block->size = current->size - total_size;
-        new_block->is_free = 1;
-        current->size = total_size;
+      int rem = current->size - total_size;
+      if (rem > 2 * MALLOC_HEADER_SIZE) {
+        write_header_footer(current, total_size, 0);
+        block_header *partition = next_block(current);
+        write_header_footer(partition, rem, 1);
+      } else {
+        write_header_footer(current, current->size, 0);
       }
-      current->is_free = 0;
       return (char *)current + MALLOC_HEADER_SIZE;
     }
     current = next_block(current);
@@ -114,41 +125,43 @@ char *malloc(int num_bytes) {
   heap_end = new_mem + pages_needed * PAGE_SIZE;
 
   block_header *new_block = (block_header *)old_heap_end;
-  new_block->size = pages_needed * PAGE_SIZE;
-  new_block->is_free = 0;
-
+  write_header_footer(new_block, pages_needed * PAGE_SIZE, 0);
   return (char *)new_block + MALLOC_HEADER_SIZE;
 }
 
 int free(char *p) {
+  if (!p || !heap_start)
+    return -1;
+  if (p < heap_start + MALLOC_HEADER_SIZE || p >= heap_end)
+    return -1;
+
   block_header *block = (block_header *)(p - MALLOC_HEADER_SIZE);
-  block->is_free = 1;
+  if (block->is_free)
+    return -1;
 
-  block_header *current = (block_header *)heap_start;
-  while ((char *)current < heap_end) {
-    block_header *next = next_block(current);
-    if ((char *)next >= heap_end)
-      break;
+  write_header_footer(block, block->size, 1);
 
-    if (current->is_free && next->is_free) {
-      current->size += next->size;
-      continue;
+  block_header *next = next_block(block);
+  if ((char *)next < heap_end && next->is_free) {
+    int new_size = block->size + next->size;
+    write_header_footer(block, new_size, 1);
+  }
+
+  if ((char *)block > heap_start) {
+    block_header *prev = prev_block(block);
+    if (prev->is_free) {
+      int new_size = block->size + prev->size;
+      write_header_footer(prev, new_size, 1);
+      block = prev;
     }
-    current = next;
   }
 
-  current = (block_header *)heap_start;
-  block_header *last = NULL;
-  while ((char *)current < heap_end) {
-    last = current;
-    current = next_block(current);
-  }
-
-  if (last && last->is_free) {
+  block_header *last = prev_block((block_header *)((char *)heap_end));
+  if (last->is_free) {
     char *block_end = (char *)last + last->size;
     int free_bytes = heap_end - (char *)last;
-
     int free_pages = free_bytes / PAGE_SIZE;
+
     if (free_pages > 0 && block_end == heap_end) {
       heap_end -= free_pages * PAGE_SIZE;
       last->size -= free_pages * PAGE_SIZE;
