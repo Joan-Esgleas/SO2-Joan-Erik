@@ -38,7 +38,8 @@ int semIDsystem = 0;
 int ret_from_fork() { return 0; }
 int ret_from_new_thread() { return 0; }
 
-int sys_semDestroy(int semid);
+
+int sys_semDestroy_extended(int semid, int userMode);
 
 int check_fd(int fd, int permissions) {
   if (fd != 1)
@@ -217,7 +218,7 @@ void sys_exit() {
 
   for (int i = 0; i < NUM_SEMS; i++) {
     if (semaphores[i].creatorPID == ct->PID)
-      sys_semDestroy(semaphores[i].id);
+      sys_semDestroy_extended(semaphores[i].id, 0);
   }
 
   if (sub_DIR_ref(ct) <= 0) {
@@ -363,8 +364,8 @@ int sys_read(char *b, int maxchars) {
 int sys_gettime() { return zeos_tick; }
 
 int sys_gotoxy(int novaX, int novaY) {
-  if (novaX < 0 || novaX >= 25 || novaY < 0 || novaY >= 80)
-    return -EINVAL; // NUM_ROWS = 25, NUM_COLUMNS = 80
+  if (novaY < 0 || novaY >= 25 || novaX < 0 || novaX >= 80)
+    return -EINVAL;
 
   x = (Byte)novaX;
   y = (Byte)novaY;
@@ -420,17 +421,24 @@ char *sys_dyn_mem(int num_pags) {
   }
 }
 
-int sys_semCreate_for_system(int initial_value) {
+int sys_semCreate_extended(int initial_value, int userMode) {
   int i = 0;
   while (i < NUM_SEMS) {
     if (semaphores[i].free) {
-      semaphores[i].id = semIDsystem;
       semaphores[i].free = 0;
       semaphores[i].value = initial_value;
       semaphores[i].creatorPID = sys_getpid();
       INIT_LIST_HEAD(&(semaphores[i].blockedThreads));
-      ++semIDsystem;
-      return (semIDsystem - 1);
+      if(userMode) {
+      	semaphores[i].id = semIDglobal;
+      	++semIDglobal;
+      	return (semIDglobal - 1);
+      }
+      else {
+      	semaphores[i].id = semIDsystem;
+      	++semIDsystem;
+      	return (semIDsystem - 1);
+      }
     }
     ++i;
   }
@@ -438,24 +446,14 @@ int sys_semCreate_for_system(int initial_value) {
 }
 
 int sys_semCreate(int initial_value) {
-  int i = 0;
-  while (i < NUM_SEMS) {
-    if (semaphores[i].free) {
-      semaphores[i].id = semIDglobal;
-      semaphores[i].free = 0;
-      semaphores[i].value = initial_value;
-      semaphores[i].creatorPID = sys_getpid();
-      INIT_LIST_HEAD(&(semaphores[i].blockedThreads));
-      ++semIDglobal;
-      return (semIDglobal - 1);
-    }
-    ++i;
-  }
-  return -1;
+  return sys_semCreate_extended(initial_value, 1);
 }
 
-int sys_semWait(int semid) {
+int sys_semWait_extended(int semid, int userMode) {
   int i = 0;
+  if(userMode && semid < 100000) return -EINVAL;
+  if(!userMode && semid >= 100000) return -EINVAL;
+  
   while (i < NUM_SEMS) {
     if (semaphores[i].id == semid) {
       if (semaphores[i].free)
@@ -473,16 +471,15 @@ int sys_semWait(int semid) {
   return -1;
 }
 
-void sys_unblock_sem(struct task_struct *ts) {
-  if (ts->current_state == ST_BLOCKED)
-    update_process_state_rr(ts, &readyqueue);
-  else
-    ++(ts->pending_unblocks);
-  sched_next_rr();
+int sys_semWait(int semid) {
+  return sys_semWait_extended(semid, 1);
 }
 
-int sys_semSignal(int semid) {
+int sys_semSignal_extended(int semid, int userMode) {
   int i = 0;
+  if(userMode && semid < 100000) return -1;
+  if(!userMode && semid >= 100000) return -1;
+  
   while (i < NUM_SEMS) {
     if (semaphores[i].id == semid) {
       if (semaphores[i].free)
@@ -492,7 +489,8 @@ int sys_semSignal(int semid) {
         struct list_head *e = list_first(&(semaphores[i].blockedThreads));
         struct task_struct *firstBlocked = list_head_to_task_struct(e);
         list_del(e);
-        sys_unblock_sem(firstBlocked);
+ 	update_process_state_rr(firstBlocked, &readyqueue);
+ 	sched_next_rr();
       }
       return semaphores[i].value;
     }
@@ -501,8 +499,14 @@ int sys_semSignal(int semid) {
   return -1;
 }
 
-int sys_semDestroy(int semid) {
+int sys_semSignal(int semid) {
+  return sys_semSignal_extended(semid, 1);
+}
+
+int sys_semDestroy_extended(int semid, int userMode) {
   int i = 0;
+  if(userMode && semid < 100000) return -EINVAL;
+  
   while (i < NUM_SEMS) {
     if (semaphores[i].id == semid) {
       if (semaphores[i].free)
@@ -516,7 +520,8 @@ int sys_semDestroy(int semid) {
         struct task_struct *firstBlocked = list_head_to_task_struct(e);
         semaphores[i].creatorPID = -1;
         list_del(e);
-        sys_unblock_sem(firstBlocked);
+        update_process_state_rr(firstBlocked, &readyqueue);
+ 	sched_next_rr();
       }
 
       semaphores[i].free = 1;
@@ -524,4 +529,8 @@ int sys_semDestroy(int semid) {
     ++i;
   }
   return -1;
+}
+
+int sys_semDestroy(int semid) {
+  return sys_semDestroy_extended(semid, 1);
 }
