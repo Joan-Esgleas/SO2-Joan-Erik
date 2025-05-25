@@ -519,7 +519,7 @@ proyectil *proyectiles;
 
 int enemigo1muerto = 0;
 int enemigo2muerto = 0;
-
+int gameThreadMuerto = 0;
 void moverProyectiles() {
   char buf[1];
   buf[0] = ' ';
@@ -581,7 +581,8 @@ void creaProyectil() {
 void keyboardThread() {
   char buffer[1];
   while(1) {
-  	if(read(buffer, 1) > 0) {
+  	if(gameThreadMuerto) exit_thread;
+  	else if(read(buffer, 1) > 0) {
   		switch(buffer[0]) {
   			case 'w': player->state = ST_UP; break;
   			case 's': player->state = ST_DOWN; break;
@@ -1180,11 +1181,13 @@ void gameThread() {
   	
   	if(hayColisionEnemigo(1) && !enemigo1muerto || hayColisionEnemigo(2) && !enemigo2muerto) {
   		pintaPixel(17, 4, sizeXLoser, sizeYLoser, loser);
+  		gameThreadMuerto = 1;
   		liberaRecursos();
   		exit_thread();
   	}
   	else if(hayColisionDiamante(5, ROWS - 8) || hayColisionDiamante(70, ROWS - 8)) {
   		pintaPixel(20, 4, sizeXWinner, sizeYWinner, winner);
+  		gameThreadMuerto = 1;
   		liberaRecursos();
   		exit_thread();
   	}
