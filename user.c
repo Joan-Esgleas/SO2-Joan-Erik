@@ -21,6 +21,7 @@
 #define ROSA 5
 #define MARRON 6
 #define BLANCO 7
+#define MAX_PROYECTILES 10
 
 char buff[24];
 
@@ -478,22 +479,29 @@ enum characterState { ST_UP, ST_DOWN, ST_LEFT, ST_RIGHT, ST_STOP };
 
 enum characterDirection { LEFT, RIGHT };
 
-struct character {
+typedef struct {
 	int x;
 	int y;
 	enum characterState state;
 	enum characterDirection dir;
-};
+} character;
 
 typedef struct {
-    char ch;
-    int fg;
-    int bg;
+	char ch;
+	int fg;
+	int bg;
 } pixel;
 
-struct character *player;
-struct character *enemigo1;
-struct character *enemigo2;
+typedef struct {
+	int x;
+	int y;
+	int activo;
+	enum characterDirection dir;
+} proyectil;
+
+character *player;
+character *enemigo1;
+character *enemigo2;
 
 char stackKeyboard[100];
 char stackGame[1024];
@@ -507,6 +515,69 @@ pixel **diamante;
 pixel **winner;
 pixel **loser;
 
+proyectil *proyectiles;
+
+int enemigo1muerto = 0;
+int enemigo2muerto = 0;
+
+void moverProyectiles() {
+  char buf[1];
+  buf[0] = ' ';
+  
+  for (int i = 0; i < MAX_PROYECTILES; ++i) {
+      if (proyectiles[i].activo) {
+        gotoxy(proyectiles[i].x, proyectiles[i].y);
+        if(mapa[proyectiles[i].y][proyectiles[i].x] == '1') set_color(BLANCO, NEGRO);
+	else set_color(BLANCO, MARRON);  	
+	write(1, buf, 1);
+
+        if (proyectiles[i].dir == LEFT) --proyectiles[i].x;
+        else ++proyectiles[i].x;
+          
+        if (mapa[proyectiles[i].y][proyectiles[i].x] == '0') {
+              proyectiles[i].activo = 0;
+        }
+        else {
+              gotoxy(proyectiles[i].x, proyectiles[i].y);
+              set_color(BLANCO, ROSA);
+              write(1, buf, 1);
+        }
+      	
+      	int x = proyectiles[i].x;
+      	int y = proyectiles[i].y;
+      	
+	if((x >= enemigo1->x) && (x < enemigo1->x + sizeXEnemigo) && (y >= enemigo1->y) && (y < enemigo1->y + sizeYEnemigo) && !enemigo1muerto) {
+		enemigo1muerto = 1;
+		proyectiles[i].activo = 0;
+		pintaTrozoMapa(enemigo1->x, enemigo1->y, sizeXEnemigo, sizeYEnemigo);
+	}
+	if((x >= enemigo2->x) && (x < enemigo2->x + sizeXEnemigo) && (y >= enemigo2->y) && (y < enemigo2->y + sizeYEnemigo) && !enemigo2muerto) {
+		enemigo2muerto = 1;
+		proyectiles[i].activo = 0;
+		pintaTrozoMapa(enemigo2->x, enemigo2->y, sizeXEnemigo, sizeYEnemigo);
+	}
+      }
+  }
+}
+
+void creaProyectil() {
+  int trobat = 0;
+  int i = 0;
+  
+  while(!trobat && i < MAX_PROYECTILES) {
+  	if(!proyectiles[i].activo) {
+  		if(player->dir == LEFT) proyectiles[i].x = player->x - 1;
+  		else proyectiles[i].x = player->x + sizeXDragon;
+  		
+  		proyectiles[i].y = player->y + 4;
+  		proyectiles[i].dir = player->dir;
+  		proyectiles[i].activo = 1;
+  		trobat = 1;	
+  	}
+  	i++;
+  }
+}
+
 void keyboardThread() {
   char buffer[1];
   while(1) {
@@ -516,6 +587,7 @@ void keyboardThread() {
   			case 's': player->state = ST_DOWN; break;
   			case 'a': player->state = ST_LEFT; player->dir = LEFT; break;
   			case 'd': player->state = ST_RIGHT; player->dir = RIGHT; break;
+  			case 'C': creaProyectil(); break;
   			default: player->state = ST_STOP; break;
   		}
   		semSignal(semChanges);
@@ -938,6 +1010,7 @@ void creaEnemigo() {
     enemigo[6][5] = (pixel){' ', NEGRO, ROJO};
     enemigo[6][6] = (pixel){' ', NEGRO, ROJO};     
 }
+
 void creaDiamante(){
     for (int i = 0; i < sizeYDiamante; ++i) {
         for (int j = 0; j < sizeXDiamante; ++j) {
@@ -1041,21 +1114,31 @@ void gameThread() {
   
   while(1) {	
   	semWait(semChanges);
+  	//Pinta diamantes:
+  	pintaPixel(5, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
+ 	pintaPixel(70, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
+  	//Mueve y pinta los proyectiles:
+  	moverProyectiles();
   	//Borra y pinta a los enemigos:
-  	gotoxy(xAntEnemigo1, yAntEnemigo1);
-  	gotoxy(xAntEnemigo2, yAntEnemigo2);
-  	pintaTrozoMapa(xAntEnemigo1, yAntEnemigo1, sizeXEnemigo, sizeYEnemigo);
-  	pintaTrozoMapa(xAntEnemigo2, yAntEnemigo2, sizeXEnemigo, sizeYEnemigo);
+  	if(!enemigo1muerto || !enemigo2muerto) {
+  		mueveEnemigos();
   	
-  	mueveEnemigos();
-  	
-  	pintaPixel(enemigo1->x, enemigo1->y, sizeXEnemigo, sizeYEnemigo, enemigo);
-  	pintaPixel(enemigo2->x, enemigo2->y, sizeXEnemigo, sizeYEnemigo, enemigo);
-  	
-  	xAntEnemigo1 = enemigo1->x;
-  	yAntEnemigo1 = enemigo1->y;
-  	xAntEnemigo2 = enemigo2->x;
-  	yAntEnemigo2 = enemigo2->y; 	  	
+  		if(!enemigo1muerto) {
+  			gotoxy(xAntEnemigo1, yAntEnemigo1);
+  			pintaTrozoMapa(xAntEnemigo1, yAntEnemigo1, sizeXEnemigo, sizeYEnemigo);
+  			pintaPixel(enemigo1->x, enemigo1->y, sizeXEnemigo, sizeYEnemigo, enemigo);
+  			xAntEnemigo1 = enemigo1->x;
+  			yAntEnemigo1 = enemigo1->y;
+  		}
+  		
+  		if(!enemigo2muerto) {
+  			gotoxy(xAntEnemigo2, yAntEnemigo2);
+  			pintaTrozoMapa(xAntEnemigo2, yAntEnemigo2, sizeXEnemigo, sizeYEnemigo);
+  			pintaPixel(enemigo2->x, enemigo2->y, sizeXEnemigo, sizeYEnemigo, enemigo);
+  			xAntEnemigo2 = enemigo2->x;
+  			yAntEnemigo2 = enemigo2->y;
+  		}
+  	}	
 	//Borra y pinta al player:
 	gotoxy(xAntPlayer, yAntPlayer);
 	
@@ -1082,7 +1165,7 @@ void gameThread() {
   	
   	player->state = ST_STOP;
   	
-  	if(hayColisionEnemigo(1) || hayColisionEnemigo(2)) {
+  	if(hayColisionEnemigo(1) && !enemigo1muerto || hayColisionEnemigo(2) && !enemigo2muerto) {
   		pintaPixel(17, 4, sizeXLoser, sizeYLoser, loser);
   		exit_thread();
   	}
@@ -1119,9 +1202,9 @@ int __attribute__((__section__(".text.main"))) main(void) {
   // test_read3();
   // test_fork2();
 
-  player = malloc(sizeof(struct character));
-  enemigo1 = malloc(sizeof(struct character));
-  enemigo2 = malloc(sizeof(struct character));
+  player = (character *)malloc(sizeof(character));
+  enemigo1 = (character *)malloc(sizeof(character));
+  enemigo2 = (character *)malloc(sizeof(character));
   
   mapa = (char **)malloc(ROWS * sizeof(char *));
 
@@ -1147,16 +1230,17 @@ int __attribute__((__section__(".text.main"))) main(void) {
   
   for (int i = 0; i < sizeYLoser; ++i) loser[i] = (pixel*)malloc(sizeof(pixel) * sizeXLoser);
   
+  proyectiles = (proyectil *)malloc(sizeof(proyectil) * MAX_PROYECTILES);
+  //Ponemos que no hay proyectiles
+  for (int i = 0; i < MAX_PROYECTILES; ++i) proyectiles[i].activo = 0;
+  
   creaMapa(mapa);
   pintaMapa(mapa);
   
+  //Crea los pixeles para cada objeto y titulo:
   creaDiamante();
-  pintaPixel(5, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
-  pintaPixel(70, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
-  
   creaWinner();
   creaLoser();
-  
   creaDragon();
   creaEnemigo();
   
