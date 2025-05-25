@@ -7,12 +7,21 @@
 #define sizeXDragon 10
 #define sizeYEnemigo 7
 #define sizeXEnemigo 7
+#define sizeYDiamante 4
+#define sizeXDiamante 5
+#define sizeXWinner 40
+#define sizeYWinner 5
+#define sizeXLoser 43
+#define sizeYLoser 5
 #define NEGRO 0
+#define AMARILLO 1;
 #define VERDE 2
+#define CIAN 3
 #define ROJO 4
 #define ROSA 5
 #define MARRON 6
 #define BLANCO 7
+#define MAX_PROYECTILES 10
 
 char buff[24];
 
@@ -470,23 +479,29 @@ enum characterState { ST_UP, ST_DOWN, ST_LEFT, ST_RIGHT, ST_STOP };
 
 enum characterDirection { LEFT, RIGHT };
 
-struct character {
+typedef struct {
 	int x;
 	int y;
 	enum characterState state;
 	enum characterDirection dir;
-};
+} character;
 
 typedef struct {
-    char ch;
-    int fg;
-    int bg;
+	char ch;
+	int fg;
+	int bg;
 } pixel;
 
-struct character *player;
-struct character *enemigo1;
-struct character *enemigo2;
+typedef struct {
+	int x;
+	int y;
+	int activo;
+	enum characterDirection dir;
+} proyectil;
 
+character *player;
+character *enemigo1;
+character *enemigo2;
 
 char stackKeyboard[100];
 char stackGame[1024];
@@ -496,6 +511,72 @@ int semChanges;
 char **mapa;
 pixel **dragon;
 pixel **enemigo;
+pixel **diamante;
+pixel **winner;
+pixel **loser;
+
+proyectil *proyectiles;
+
+int enemigo1muerto = 0;
+int enemigo2muerto = 0;
+
+void moverProyectiles() {
+  char buf[1];
+  buf[0] = ' ';
+  
+  for (int i = 0; i < MAX_PROYECTILES; ++i) {
+      if (proyectiles[i].activo) {
+        gotoxy(proyectiles[i].x, proyectiles[i].y);
+        if(mapa[proyectiles[i].y][proyectiles[i].x] == '1') set_color(BLANCO, NEGRO);
+	else set_color(BLANCO, MARRON);  	
+	write(1, buf, 1);
+
+        if (proyectiles[i].dir == LEFT) --proyectiles[i].x;
+        else ++proyectiles[i].x;
+          
+        if (mapa[proyectiles[i].y][proyectiles[i].x] == '0') {
+              proyectiles[i].activo = 0;
+        }
+        else {
+              gotoxy(proyectiles[i].x, proyectiles[i].y);
+              set_color(BLANCO, ROSA);
+              write(1, buf, 1);
+        }
+      	
+      	int x = proyectiles[i].x;
+      	int y = proyectiles[i].y;
+      	
+	if((x >= enemigo1->x) && (x < enemigo1->x + sizeXEnemigo) && (y >= enemigo1->y) && (y < enemigo1->y + sizeYEnemigo) && !enemigo1muerto) {
+		enemigo1muerto = 1;
+		proyectiles[i].activo = 0;
+		pintaTrozoMapa(enemigo1->x, enemigo1->y, sizeXEnemigo, sizeYEnemigo);
+	}
+	if((x >= enemigo2->x) && (x < enemigo2->x + sizeXEnemigo) && (y >= enemigo2->y) && (y < enemigo2->y + sizeYEnemigo) && !enemigo2muerto) {
+		enemigo2muerto = 1;
+		proyectiles[i].activo = 0;
+		pintaTrozoMapa(enemigo2->x, enemigo2->y, sizeXEnemigo, sizeYEnemigo);
+	}
+      }
+  }
+}
+
+void creaProyectil() {
+  int trobat = 0;
+  int i = 0;
+  
+  while(!trobat && i < MAX_PROYECTILES) {
+  	if(!proyectiles[i].activo) {
+  		if(player->dir == LEFT) proyectiles[i].x = player->x - 1;
+  		else proyectiles[i].x = player->x + sizeXDragon;
+  		
+  		proyectiles[i].y = player->y + 4;
+  		proyectiles[i].dir = player->dir;
+  		proyectiles[i].activo = 1;
+  		trobat = 1;	
+  	}
+  	i++;
+  }
+}
 
 void keyboardThread() {
   char buffer[1];
@@ -506,6 +587,7 @@ void keyboardThread() {
   			case 's': player->state = ST_DOWN; break;
   			case 'a': player->state = ST_LEFT; player->dir = LEFT; break;
   			case 'd': player->state = ST_RIGHT; player->dir = RIGHT; break;
+  			case 'C': creaProyectil(); break;
   			default: player->state = ST_STOP; break;
   		}
   		semSignal(semChanges);
@@ -514,12 +596,12 @@ void keyboardThread() {
 	
 }
 
-void pintaTrozoMapa(int x, int y, int size) {
+void pintaTrozoMapa(int x, int y, int sizeX, int sizeY) {
   char buffer[1];
   buffer[0] = ' ';
   
-  for(int i = y; (i < y + size) && (i < ROWS); ++i) {
-  	for(int j = x; (j < x + size) && (j < COLS); ++j) {
+  for(int i = y; (i < y + sizeY) && (i < ROWS); ++i) {
+  	for(int j = x; (j < x + sizeX) && (j < COLS); ++j) {
   		gotoxy(j, i);
   		if(mapa[i][j] == '1') set_color(BLANCO, NEGRO);
 		else set_color(BLANCO, MARRON);  	
@@ -570,11 +652,23 @@ void creaMapa(char ** map) {
   }
 }
 
+void pintaPixel(int x0, int y0, int sizeX, int sizeY, pixel **pix) {
+    char buf[1];
+    for (int i = 0; i < sizeY; ++i) {
+        for (int j = 0; j < sizeX; ++j) {
+            gotoxy(x0 + j, y0 + i);
+            set_color(pix[i][j].fg, pix[i][j].bg);
+            buf[0] = pix[i][j].ch;
+            write(1, buf, 1);
+        }
+    }
+}
+
 void pintaDragonIzquierda(int x0, int y0) {
     char buf[1];
     for (int i = 0; i < sizeYDragon; ++i) {
         for (int j = 0; j < sizeXDragon; ++j) {
-            int espejoJ = sizeXDragon - 1 - j; // Índice reflejado
+            int espejoJ = sizeXDragon - 1 - j;
             gotoxy(x0 + j, y0 + i);
             set_color(dragon[i][espejoJ].fg, dragon[i][espejoJ].bg);
             buf[0] = dragon[i][espejoJ].ch;
@@ -583,16 +677,206 @@ void pintaDragonIzquierda(int x0, int y0) {
     }
 }
 
-void pintaDragonDerecha(int x0, int y0) {
-    char buf[1];
-    for (int i = 0; i < sizeYDragon; ++i) {
-        for (int j = 0; j < sizeXDragon; ++j) {
-            gotoxy(x0 + j, y0 + i);
-            set_color(dragon[i][j].fg, dragon[i][j].bg);
-            buf[0] = dragon[i][j].ch;
-            write(1, buf, 1);
+void creaLoser() {
+    for (int i = 0; i < sizeYLoser; ++i) {
+        for (int j = 0; j < sizeXLoser; ++j) {
+            loser[i][j].ch = ' ';
+            loser[i][j].fg = NEGRO;
+            loser[i][j].bg = NEGRO;
         }
     }
+    
+    loser[0][0] = (pixel){' ', NEGRO, ROJO};
+    loser[0][4] = (pixel){' ', NEGRO, ROJO};
+    loser[0][7] = (pixel){' ', NEGRO, ROJO};
+    loser[0][8] = (pixel){' ', NEGRO, ROJO};
+    loser[0][9] = (pixel){' ', NEGRO, ROJO};
+    loser[0][12] = (pixel){' ', NEGRO, ROJO};
+    loser[0][16] = (pixel){' ', NEGRO, ROJO};
+    loser[0][20] = (pixel){' ', NEGRO, ROJO};
+    loser[0][27] = (pixel){' ', NEGRO, ROJO};
+    loser[0][28] = (pixel){' ', NEGRO, ROJO};
+    loser[0][29] = (pixel){' ', NEGRO, ROJO};
+    loser[0][33] = (pixel){' ', NEGRO, ROJO};
+    loser[0][34] = (pixel){' ', NEGRO, ROJO};
+    loser[0][35] = (pixel){' ', NEGRO, ROJO};
+    loser[0][36] = (pixel){' ', NEGRO, ROJO};
+    loser[0][38] = (pixel){' ', NEGRO, ROJO};
+    loser[0][39] = (pixel){' ', NEGRO, ROJO};
+    loser[0][40] = (pixel){' ', NEGRO, ROJO};
+    loser[0][41] = (pixel){' ', NEGRO, ROJO};
+    loser[0][42] = (pixel){' ', NEGRO, ROJO};
+    
+    loser[1][1] = (pixel){' ', NEGRO, ROJO};
+    loser[1][3] = (pixel){' ', NEGRO, ROJO};
+    loser[1][6] = (pixel){' ', NEGRO, ROJO};
+    loser[1][10] = (pixel){' ', NEGRO, ROJO};
+    loser[1][12] = (pixel){' ', NEGRO, ROJO};
+    loser[1][16] = (pixel){' ', NEGRO, ROJO};
+    loser[1][20] = (pixel){' ', NEGRO, ROJO};
+    loser[1][26] = (pixel){' ', NEGRO, ROJO};
+    loser[1][32] = (pixel){' ', NEGRO, ROJO};
+    loser[1][38] = (pixel){' ', NEGRO, ROJO};
+    
+    loser[2][2] = (pixel){' ', NEGRO, ROJO};
+    loser[2][6] = (pixel){' ', NEGRO, ROJO};
+    loser[2][10] = (pixel){' ', NEGRO, ROJO};
+    loser[2][12] = (pixel){' ', NEGRO, ROJO};
+    loser[2][16] = (pixel){' ', NEGRO, ROJO};
+    loser[2][20] = (pixel){' ', NEGRO, ROJO};
+    loser[2][26] = (pixel){' ', NEGRO, ROJO};
+    loser[2][30] = (pixel){' ', NEGRO, ROJO};
+    loser[2][33] = (pixel){' ', NEGRO, ROJO};
+    loser[2][34] = (pixel){' ', NEGRO, ROJO};
+    loser[2][35] = (pixel){' ', NEGRO, ROJO};
+    loser[2][38] = (pixel){' ', NEGRO, ROJO};
+    loser[2][39] = (pixel){' ', NEGRO, ROJO};
+    loser[2][40] = (pixel){' ', NEGRO, ROJO};
+    
+    loser[3][2] = (pixel){' ', NEGRO, ROJO};
+    loser[3][6] = (pixel){' ', NEGRO, ROJO};
+    loser[3][10] = (pixel){' ', NEGRO, ROJO};
+    loser[3][12] = (pixel){' ', NEGRO, ROJO};
+    loser[3][16] = (pixel){' ', NEGRO, ROJO};
+    loser[3][20] = (pixel){' ', NEGRO, ROJO};
+    loser[3][26] = (pixel){' ', NEGRO, ROJO};
+    loser[3][30] = (pixel){' ', NEGRO, ROJO};
+    loser[3][36] = (pixel){' ', NEGRO, ROJO};
+    loser[3][38] = (pixel){' ', NEGRO, ROJO};
+    
+    loser[4][2] = (pixel){' ', NEGRO, ROJO};
+    loser[4][7] = (pixel){' ', NEGRO, ROJO};
+    loser[4][8] = (pixel){' ', NEGRO, ROJO};
+    loser[4][9] = (pixel){' ', NEGRO, ROJO};
+    loser[4][13] = (pixel){' ', NEGRO, ROJO};
+    loser[4][14] = (pixel){' ', NEGRO, ROJO};
+    loser[4][15] = (pixel){' ', NEGRO, ROJO};
+    loser[4][20] = (pixel){' ', NEGRO, ROJO};
+    loser[4][21] = (pixel){' ', NEGRO, ROJO};
+    loser[4][22] = (pixel){' ', NEGRO, ROJO};
+    loser[4][23] = (pixel){' ', NEGRO, ROJO};
+    loser[4][24] = (pixel){' ', NEGRO, ROJO};
+    loser[4][27] = (pixel){' ', NEGRO, ROJO};
+    loser[4][28] = (pixel){' ', NEGRO, ROJO};
+    loser[4][29] = (pixel){' ', NEGRO, ROJO};
+    loser[4][32] = (pixel){' ', NEGRO, ROJO};
+    loser[4][33] = (pixel){' ', NEGRO, ROJO};
+    loser[4][34] = (pixel){' ', NEGRO, ROJO};
+    loser[4][35] = (pixel){' ', NEGRO, ROJO};
+    loser[4][38] = (pixel){' ', NEGRO, ROJO};
+    loser[4][39] = (pixel){' ', NEGRO, ROJO};
+    loser[4][40] = (pixel){' ', NEGRO, ROJO};
+    loser[4][41] = (pixel){' ', NEGRO, ROJO};
+    loser[4][42] = (pixel){' ', NEGRO, ROJO};
+}
+
+void creaWinner() {
+    for (int i = 0; i < sizeYWinner; ++i) {
+        for (int j = 0; j < sizeXWinner; ++j) {
+            winner[i][j].ch = ' ';
+            winner[i][j].fg = NEGRO;
+            winner[i][j].bg = NEGRO;
+        }
+    }
+    
+    winner[0][0] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][4] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][6] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][7] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][8] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][9] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][10] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][12] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][16] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][18] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][22] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][24] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][25] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][26] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][27] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][28] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][30] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][31] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][32] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][33] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][37] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][38] = (pixel){' ', NEGRO, BLANCO};
+    winner[0][39] = (pixel){' ', NEGRO, BLANCO};
+    
+    winner[1][0] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][4] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][8] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][12] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][13] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][16] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][18] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][19] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][22] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][24] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][30] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][34] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][37] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][38] = (pixel){' ', NEGRO, BLANCO};
+    winner[1][39] = (pixel){' ', NEGRO, BLANCO};
+    
+    winner[2][0] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][2] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][4] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][8] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][12] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][14] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][16] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][18] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][20] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][22] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][24] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][25] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][26] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][30] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][31] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][32] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][33] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][37] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][38] = (pixel){' ', NEGRO, BLANCO};
+    winner[2][39] = (pixel){' ', NEGRO, BLANCO};
+    
+    winner[3][0] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][1] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][2] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][3] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][4] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][8] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][12] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][15] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][16] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][18] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][21] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][22] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][24] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][30] = (pixel){' ', NEGRO, BLANCO};
+    winner[3][32] = (pixel){' ', NEGRO, BLANCO};
+    
+    winner[4][0] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][4] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][6] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][7] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][8] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][9] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][10] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][12] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][16] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][18] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][22] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][24] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][25] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][26] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][27] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][28] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][30] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][33] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][37] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][38] = (pixel){' ', NEGRO, BLANCO};
+    winner[4][39] = (pixel){' ', NEGRO, BLANCO};
 }
 
 void creaDragon() {
@@ -672,18 +956,6 @@ void creaDragon() {
     dragon[7][8] = (pixel){' ', NEGRO, BLANCO};
 }
 
-void pintaEnemigo(int x0, int y0) {
-    char buf[1];
-    for (int i = 0; i < sizeYEnemigo; ++i) {
-        for (int j = 0; j < sizeXEnemigo; ++j) {
-            gotoxy(x0 + j, y0 + i);
-            set_color(enemigo[i][j].fg, enemigo[i][j].bg);
-            buf[0] = enemigo[i][j].ch;
-            write(1, buf, 1);
-        }
-    }
-}
-
 void creaEnemigo() {
     for (int i = 0; i < sizeYEnemigo; ++i) {
         for (int j = 0; j < sizeXEnemigo; ++j) {
@@ -739,6 +1011,29 @@ void creaEnemigo() {
     enemigo[6][6] = (pixel){' ', NEGRO, ROJO};     
 }
 
+void creaDiamante(){
+    for (int i = 0; i < sizeYDiamante; ++i) {
+        for (int j = 0; j < sizeXDiamante; ++j) {
+            diamante[i][j].ch = ' ';
+            diamante[i][j].fg = NEGRO;
+            diamante[i][j].bg = NEGRO;
+        }
+    }
+    
+    diamante[0][1] = (pixel){' ', NEGRO, CIAN};
+    diamante[0][2] = (pixel){' ', NEGRO, CIAN};
+    diamante[0][3] = (pixel){' ', NEGRO, CIAN};
+    diamante[1][0] = (pixel){' ', NEGRO, CIAN};
+    diamante[1][1] = (pixel){' ', NEGRO, BLANCO};
+    diamante[1][2] = (pixel){' ', NEGRO, CIAN};
+    diamante[1][3] = (pixel){' ', NEGRO, CIAN};
+    diamante[1][4] = (pixel){' ', NEGRO, CIAN};
+    diamante[2][1] = (pixel){' ', NEGRO, CIAN};
+    diamante[2][2] = (pixel){' ', NEGRO, BLANCO};
+    diamante[2][3] = (pixel){' ', NEGRO, CIAN};
+    diamante[3][2] = (pixel){' ', NEGRO, CIAN};
+}
+
 int posicionValida(char ** map, int x, int y, int sizeX, int sizeY) {
   char buffer[1];
   buffer[0] = ' ';
@@ -752,41 +1047,74 @@ int posicionValida(char ** map, int x, int y, int sizeX, int sizeY) {
   return 1;
 }
 
-//enemigoStr es de enemigoStruct
-void mueveEnemigo(int numEnemigo) {
-  struct character * enemigoStr;
-  if(numEnemigo == 1) enemigoStr = enemigo1;
-  else enemigoStr = enemigo2;
-	
-  int x = enemigoStr->x;
-  int y = enemigoStr->y;
+int contadorEnemigos = 0;
 
-  if (x < 0 || y < 0 || x >= COLS || y >= ROWS)
-  	pintaEnemigo(1, 1); return;
+void mueveEnemigos() {
+ if(contadorEnemigos >= 5) {
+  	contadorEnemigos = 0;
+  	
+  	if(enemigo1->dir == LEFT) enemigo1->dir = RIGHT;
+  	else if(enemigo1->dir == RIGHT) enemigo1->dir = LEFT;
+  	
+  	if(enemigo2->dir == LEFT) enemigo2->dir = RIGHT;
+  	else if(enemigo2->dir == RIGHT) enemigo2->dir = LEFT;
+  }
+  else {
+  	++contadorEnemigos;
+  	
+  	if(enemigo1->dir == LEFT) --enemigo1->x;
+  	else if(enemigo1->dir == RIGHT) ++enemigo1->x;
+  	
+  	if(enemigo2->dir == LEFT) --enemigo2->x;
+  	else if(enemigo2->dir == RIGHT) ++enemigo2->x;
+  }
+}
 
-  if (enemigoStr->dir == RIGHT) {
- 	if (x + sizeXEnemigo >= COLS || y + sizeYEnemigo >= ROWS) {
-		enemigoStr->dir = LEFT;
-		return;
-	}
-	if (mapa[y + sizeYEnemigo - 1][x + sizeXEnemigo] == '1' || 
-	    mapa[y + sizeYEnemigo][x + sizeXEnemigo] == '0') {
-		enemigoStr->dir = LEFT;
-	} else {
-		enemigoStr->x++;
-	}
-  } else { // LEFT
-	if (x - 1 < 0 || y + sizeYEnemigo >= ROWS) {
-		enemigoStr->dir = RIGHT;
-		return;
-	}
-	if (mapa[y + sizeYEnemigo - 1][x - 1] == '1' || 
-	    mapa[y + sizeYEnemigo][x - 1] == '0') {
-		enemigoStr->dir = RIGHT;
-	} else {
-		enemigoStr->x--;
-	}
-  }  
+int hayColisionEnemigo(int numEnemigo) {
+  int px1 = player->x;
+  int py1 = player->y;
+  int px2 = px1 + sizeXDragon - 1;
+  int py2 = py1 + sizeYDragon - 1;
+
+  int ex1 = enemigo1->x;
+  int ey1 = enemigo1->y;
+  
+  if(numEnemigo == 2) {
+  	ex1 = enemigo2->x;
+  	ey1 = enemigo2->y;
+  }
+  
+  int ex2 = ex1 + sizeXEnemigo - 1;
+  int ey2 = ey1 + sizeYEnemigo - 1;
+  
+  if (px2 < ex1 || px1 > ex2 || py2 < ey1 || py1 > ey2) return 0;
+  return 1;
+}
+
+int hayColisionDiamante(int dx1, int dy1) {
+  int px1 = player->x;
+  int py1 = player->y;
+  int px2 = px1 + sizeXDragon - 1;
+  int py2 = py1 + sizeYDragon - 1;
+  
+  int dx2 = dx1 + sizeXDiamante - 1;
+  int dy2 = dy1 + sizeYDiamante - 1;
+  
+  if (px2 < dx1 || px1 > dx2 || py2 < dy1 || py1 > dy2) return 0;
+  return 1;
+}
+
+void liberaRecursos() {
+  free(player);
+  free(enemigo1);
+  free(enemigo2);
+  free(mapa);
+  free(dragon);
+  free(enemigo);
+  free(diamante);
+  free(winner);
+  free(loser);
+  free(proyectiles);
 }
 
 void gameThread() {  
@@ -798,11 +1126,36 @@ void gameThread() {
   int yAntEnemigo2 = enemigo2->y;
   
   while(1) {	
-	semWait(semChanges);  	
+  	semWait(semChanges);
+  	//Pinta diamantes:
+  	pintaPixel(5, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
+ 	pintaPixel(70, ROWS - 8, sizeXDiamante, sizeYDiamante, diamante);
+  	//Mueve y pinta los proyectiles:
+  	moverProyectiles();
+  	//Borra y pinta a los enemigos:
+  	if(!enemigo1muerto || !enemigo2muerto) {
+  		mueveEnemigos();
+  	
+  		if(!enemigo1muerto) {
+  			gotoxy(xAntEnemigo1, yAntEnemigo1);
+  			pintaTrozoMapa(xAntEnemigo1, yAntEnemigo1, sizeXEnemigo, sizeYEnemigo);
+  			pintaPixel(enemigo1->x, enemigo1->y, sizeXEnemigo, sizeYEnemigo, enemigo);
+  			xAntEnemigo1 = enemigo1->x;
+  			yAntEnemigo1 = enemigo1->y;
+  		}
+  		
+  		if(!enemigo2muerto) {
+  			gotoxy(xAntEnemigo2, yAntEnemigo2);
+  			pintaTrozoMapa(xAntEnemigo2, yAntEnemigo2, sizeXEnemigo, sizeYEnemigo);
+  			pintaPixel(enemigo2->x, enemigo2->y, sizeXEnemigo, sizeYEnemigo, enemigo);
+  			xAntEnemigo2 = enemigo2->x;
+  			yAntEnemigo2 = enemigo2->y;
+  		}
+  	}	
 	//Borra y pinta al player:
 	gotoxy(xAntPlayer, yAntPlayer);
 	
-	pintaTrozoMapa(xAntPlayer, yAntPlayer, 10);
+	pintaTrozoMapa(xAntPlayer, yAntPlayer, sizeXDragon, sizeYDragon);
 	
 	switch(player->state) {
 	  case ST_UP: --(player->y); break;
@@ -817,7 +1170,7 @@ void gameThread() {
 		player->y = yAntPlayer;
 	}
 	
-	if(player->dir == RIGHT) pintaDragonDerecha(player->x, player->y);
+	if(player->dir == RIGHT) pintaPixel(player->x, player->y, sizeXDragon, sizeYDragon, dragon);
 	else pintaDragonIzquierda(player->x, player->y);
 	
 	xAntPlayer = player->x;
@@ -825,29 +1178,16 @@ void gameThread() {
   	
   	player->state = ST_STOP;
   	
-  	//Borra y pinta al enemigo1:
-  	gotoxy(xAntEnemigo1, yAntEnemigo1);
-  	
-  	pintaTrozoMapa(xAntEnemigo1, yAntEnemigo1, 7);
-  	
-  	mueveEnemigo(&enemigo1);
-  	
-  	pintaEnemigo(enemigo1->x, enemigo1->y);
-  	
-  	xAntEnemigo1 = enemigo1->x;
-  	yAntEnemigo1 = enemigo1->y;
-  	
-  	//Borra y pinta al enemigo2:
-  	gotoxy(xAntEnemigo2, yAntEnemigo2);
-  	
-  	pintaTrozoMapa(xAntEnemigo2, yAntEnemigo2, 7);
-  	
-  	mueveEnemigo(&enemigo2);
-  	
-  	pintaEnemigo(enemigo2->x, enemigo2->y);
-  	
-  	xAntEnemigo2 = enemigo2->x;
-  	yAntEnemigo2 = enemigo2->y;
+  	if(hayColisionEnemigo(1) && !enemigo1muerto || hayColisionEnemigo(2) && !enemigo2muerto) {
+  		pintaPixel(17, 4, sizeXLoser, sizeYLoser, loser);
+  		liberaRecursos();
+  		exit_thread();
+  	}
+  	else if(hayColisionDiamante(5, ROWS - 8) || hayColisionDiamante(70, ROWS - 8)) {
+  		pintaPixel(20, 4, sizeXWinner, sizeYWinner, winner);
+  		liberaRecursos();
+  		exit_thread();
+  	}
   }
 }
 
@@ -877,9 +1217,9 @@ int __attribute__((__section__(".text.main"))) main(void) {
   // test_read3();
   // test_fork2();
 
-  player = malloc(sizeof(struct character));
-  enemigo1 = malloc(sizeof(struct character));
-  enemigo2 = malloc(sizeof(struct character));
+  player = (character *)malloc(sizeof(character));
+  enemigo1 = (character *)malloc(sizeof(character));
+  enemigo2 = (character *)malloc(sizeof(character));
   
   mapa = (char **)malloc(ROWS * sizeof(char *));
 
@@ -893,9 +1233,29 @@ int __attribute__((__section__(".text.main"))) main(void) {
   
   for (int i = 0; i < sizeYEnemigo; ++i) enemigo[i] = (pixel*)malloc(sizeof(pixel) * sizeXEnemigo);
   
+  diamante = (pixel**)malloc(sizeof(pixel*) * sizeYDiamante);
+  
+  for (int i = 0; i < sizeYDiamante; ++i) diamante[i] = (pixel*)malloc(sizeof(pixel) * sizeXDiamante);
+  
+  winner = (pixel**)malloc(sizeof(pixel*) * sizeYWinner);
+  
+  for (int i = 0; i < sizeYWinner; ++i) winner[i] = (pixel*)malloc(sizeof(pixel) * sizeXWinner);
+  
+  loser = (pixel**)malloc(sizeof(pixel*) * sizeYLoser);
+  
+  for (int i = 0; i < sizeYLoser; ++i) loser[i] = (pixel*)malloc(sizeof(pixel) * sizeXLoser);
+  
+  proyectiles = (proyectil *)malloc(sizeof(proyectil) * MAX_PROYECTILES);
+  //Ponemos que no hay proyectiles
+  for (int i = 0; i < MAX_PROYECTILES; ++i) proyectiles[i].activo = 0;
+  
   creaMapa(mapa);
   pintaMapa(mapa);
   
+  //Crea los pixeles para cada objeto y titulo:
+  creaDiamante();
+  creaWinner();
+  creaLoser();
   creaDragon();
   creaEnemigo();
   
@@ -903,9 +1263,8 @@ int __attribute__((__section__(".text.main"))) main(void) {
   player->y = ROWS - 9;
   player->dir = RIGHT;
   player->state = ST_STOP;
-  pintaDragonDerecha(player->x, player->y);
   
-  enemigo1->x = 12;
+  enemigo1->x = 13;
   enemigo1->y = ROWS - 9;
   enemigo1->dir = RIGHT;
   
@@ -916,9 +1275,11 @@ int __attribute__((__section__(".text.main"))) main(void) {
   semChanges = semCreate(0);
   
   create_thread(&keyboardThread, &stackKeyboard[100], NULL);
-  create_thread(&gameThread, &stackGame[1024], NULL);
+  int gameThreadID = create_thread(&gameThread, &stackGame[1024], NULL);
   
   semSignal(semChanges);
   while (1) {
+  	for(int i = 0; i < 10000000; ++i);
+  	semSignal(semChanges);
   }
 }
