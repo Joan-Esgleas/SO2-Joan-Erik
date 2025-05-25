@@ -9,13 +9,14 @@
 #include <stats.h>
 
 #define PAGE_SIZE 0x1000
-#define MALLOC_HEADER_SIZE 8
 #define NULL 0
 
 typedef struct block_header {
     int size;
     int is_free;
 } block_header;
+
+#define MALLOC_HEADER_SIZE sizeof(block_header)
 
 int write(int fd, char *buffer, int size);
 
